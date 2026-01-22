@@ -16,82 +16,67 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Virtual Environments
-venv/
-ENV/
-env/
-.venv
-poetry.lock
-
-# PyCharm
-.idea/
-
-# VSCode
-.vscode/
-*.code-workspace
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-
-# pytest
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
-.nox/
+.hypothesis/
+*.log
 
-# MyPy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
 
-# Ruff
-.ruff_cache/
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+*.dockerignore
 
 # Environment Variables
 .env
 .env.local
-.env.*.local
-
-# Docker
-*.log
-docker-compose.override.yml
 
 # Database
 *.db
-*.sqlite
 *.sqlite3
-postgres_data/
-redis_data/
 
-# OS
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
+# Dagster
+dagster_home/
+.dagster/
+dagit_logs/
+
+# Monitoring
+monitoring/grafana/data/
+monitoring/prometheus/data/
 
 # Temporary Files
 tmp/
 temp/
 *.tmp
 
-
-# Monitoring & Logs
+# Logs
 logs/
 *.log
-monitoring_data/
 
-# Documentation Build
-docs/_build/
-docs/.doctrees/
-site/
+# Test Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Data Files (depending on your needs)
+*.csv
+*.json
+data/
+!tests/fixtures/*.json

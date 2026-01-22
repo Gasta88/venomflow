@@ -1,0 +1,22 @@
+# Dagster core
+dagster==1.5.12
+dagster-webserver==1.5.12
+dagster-postgres==0.21.12
+dagster-docker==0.21.12
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+
+# HTTP and API clients
+requests==2.31.0
+httpx==0.25.2
+
+# Data processing
+pandas==2.1.4
+biopython==1.83
+
+# Utilities
+python-dotenv==1.0.0
+pydantic==2.5.2
+pydantic-settings==2.1.0
