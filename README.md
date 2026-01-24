@@ -1,4 +1,4 @@
-# 🐍 VenomFlow
+# VenomFlow
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -10,7 +10,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#-overview)
 - [Key Features](#-key-features)
@@ -33,51 +33,51 @@
 
 ---
 
-## 🌟 Overview
+## Overview
 
 VenomFlow is designed to streamline the process of collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages modern data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
 
 ### Why VenomFlow?
 
-- **Automated Data Pipelines**: Schedule and orchestrate complex data workflows with Dagster
+- **Automated Data Pipelines**: Schedule and orchestrate data workflows with Dagster
 - **Scalable Architecture**: Microservices design allows independent scaling of components
-- **Rich Search Capabilities**: Full-text search powered by Elasticsearch
-- **GraphQL API**: Flexible, efficient data queries with FastAPI
+- **Rich Search Capabilities**: Full-text search with Elasticsearch
+- **GraphQL API**: Flexible data queries with FastAPI and Strawberry
 - **Real-time Monitoring**: Track pipeline health and performance with Prometheus & Grafana
 - **Research-Ready**: Clean, validated, and enriched data ready for analysis
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### Data Ingestion & Processing
-- 🔄 **Multi-source Integration**: Fetch data from UniProt, NCBI, PubChem, and custom sources
-- 🧹 **Automated Validation**: Ensure data quality with comprehensive validation rules
-- 🧬 **Sequence Analysis**: BLAST integration for homology searches
-- 🏷️ **Property Enrichment**: Automatic calculation of physicochemical properties
-- 📊 **Batch Processing**: Efficient handling of large datasets
+- **Multi-source Integration**: Fetch data from UniProt, NCBI, PubChem, and custom sources
+- **Automated Validation**: Ensure data quality with comprehensive validation rules
+- **Sequence Analysis**: BLAST integration for homology searches
+- **Property Enrichment**: Automatic calculation of physicochemical properties
+- **Batch Processing**: Efficient handling of large datasets
 
 ### Search & Discovery
-- 🔍 **Full-text Search**: Fast, relevant search across all peptide data
-- 🎯 **Advanced Filtering**: Filter by organism, bioactivity, properties, and more
-- 📈 **Faceted Search**: Aggregate and explore data by multiple dimensions
-- 🔗 **Relationship Mapping**: Discover connections between peptides, organisms, and bioactivities
+- **Full-text Search**: Fast, relevant search across all peptide data
+- **Advanced Filtering**: Filter by organism, bioactivity, properties, and more
+- **Faceted Search**: Aggregate and explore data by multiple dimensions
+- **Relationship Mapping**: Discover connections between peptides, organisms, and bioactivities
 
 ### API & Integration
-- 🚀 **GraphQL API**: Flexible queries with precise data fetching
-- 📡 **RESTful Endpoints**: Standard HTTP interfaces for common operations
-- 🔐 **Authentication**: Secure access with JWT tokens
-- 📝 **Interactive Documentation**: Auto-generated API docs with Swagger/GraphQL Playground
+- **GraphQL API**: Flexible queries with precise data fetching
+- **RESTful Endpoints**: Standard HTTP interfaces for common operations
+- **Authentication**: Secure access with JWT tokens
+- **Interactive Documentation**: Auto-generated API docs with Swagger/GraphQL Playground
 
 ### Monitoring & Analytics
-- 📊 **Real-time Dashboards**: Monitor pipeline execution and system health
-- 🔔 **Alert System**: Get notified of pipeline failures or anomalies
-- 📈 **Metrics Collection**: Track throughput, latency, and resource usage
-- 📉 **Historical Analysis**: Visualize trends over time
+- **Real-time Dashboards**: Monitor pipeline execution and system health
+- **Alert System**: Get notified of pipeline failures or anomalies
+- **Metrics Collection**: Track throughput, latency, and resource usage
+- **Historical Analysis**: Visualize trends over time
 
 ---
 
-## 🎯 Use Cases
+## Use Cases
 
 ### Drug Discovery
 - Identify novel peptides with specific bioactivities
@@ -101,7 +101,7 @@ VenomFlow is designed to streamline the process of collecting, processing, and a
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 Get VenomFlow running locally in under 5 minutes!
 
@@ -128,12 +128,12 @@ Get VenomFlow running locally in under 5 minutes!
 
 3. **Start all services**
    ```bash
-   docker compose up -d
+   make up
    ```
 
 4. **Wait for services to be healthy** (30-60 seconds)
    ```bash
-   docker compose ps
+   make ps
    ```
 
 5. **Access the services**
@@ -148,10 +148,10 @@ Get VenomFlow running locally in under 5 minutes!
 
 ```bash
 # Check all services are running
-docker compose ps
+make ps
 
-# View logs
-docker compose logs -f
+# View all logs
+make logs
 
 # Run a test query
 curl -X POST http://localhost:8000/graphql \
@@ -163,78 +163,78 @@ curl -X POST http://localhost:8000/graphql \
 
 ```bash
 # Stop all services
-docker compose down
+make down
 
 # Stop and remove volumes (WARNING: deletes all data)
-docker compose down -v
+make clean
 ```
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-VenomFlow follows a modern microservices architecture with clear separation of concerns.
+VenomFlow follows a microservices architecture with a separation of concerns.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         VenomFlow Platform                       │
+│                         VenomFlow Platform                      │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                      API Layer (FastAPI)                         │
-│  ┌──────────────────────────────────────────────────────────┐  │
+│                      API Layer (FastAPI)                        │
+│  ┌──────────────────────────────────────────────────────────┐   │
 │  │   GraphQL API                  REST API                   │  │
 │  │   - Queries                    - Health checks            │  │
 │  │   - Mutations                  - Batch operations         │  │
 │  │   - Subscriptions              - File uploads             │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  └──────────────────────────────────────────────────────────┘   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
-│              Orchestration Layer (Dagster)                       │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Dagster Web Server    │    Dagster Daemon               │  │
-│  │  - Pipeline UI         │    - Scheduler                  │  │
-│  │  - Job monitoring      │    - Sensors                    │  │
-│  │  - Asset lineage       │    - Run coordinator            │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│              Orchestration Layer (Dagster)                      │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Dagster Web Server    │    Dagster Daemon               │   │
+│  │  - Pipeline UI         │    - Scheduler                  │   │
+│  │  - Job monitoring      │    - Sensors                    │   │
+│  │  - Asset lineage       │    - Run coordinator            │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
-│                     Processing Layer                             │
-│  ┌────────────────┬────────────────┬────────────────────────┐  │
-│  │  Ingestion     │  Validation    │  Enrichment            │  │
-│  │  - UniProt     │  - Schema      │  - Properties          │  │
-│  │  - NCBI        │  - Quality     │  - BLAST               │  │
-│  │  - PubChem     │  - Dedup       │  - Cross-reference     │  │
-│  └────────────────┴────────────────┴────────────────────────┘  │
+│                     Processing Layer                            │
+│  ┌────────────────┬────────────────┬────────────────────────┐   │
+│  │  Ingestion     │  Validation    │  Enrichment            │   │
+│  │  - UniProt     │  - Schema      │  - Properties          │   │
+│  │  - NCBI        │  - Quality     │  - BLAST               │   │
+│  │  - PubChem     │  - Dedup       │  - Cross-reference     │   │
+│  └────────────────┴────────────────┴────────────────────────┘   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
-│                      Storage Layer                               │
-│  ┌──────────────┬──────────────┬──────────────┬─────────────┐  │
-│  │ PostgreSQL   │ Elasticsearch│    Redis     │   MinIO     │  │
-│  │ - Structured │ - Full-text  │ - Cache      │ - Objects   │  │
-│  │ - Relations  │ - Search     │ - Sessions   │ - Files     │  │
-│  │ - Metadata   │ - Analytics  │ - Queue      │ - Backups   │  │
-│  └──────────────┴──────────────┴──────────────┴─────────────┘  │
+│                      Storage Layer                              │
+│  ┌──────────────┬──────────────┬──────────────┬─────────────┐   │
+│  │ PostgreSQL   │ Elasticsearch│    Redis     │   MinIO     │   │
+│  │ - Structured │ - Full-text  │ - Cache      │ - Objects   │   │
+│  │ - Relations  │ - Search     │ - Sessions   │ - Files     │   │
+│  │ - Metadata   │ - Analytics  │ - Queue      │ - Backups   │   │
+│  └──────────────┴──────────────┴──────────────┴─────────────┘   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
-│              Monitoring Layer (Prometheus/Grafana)               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Metrics Collection    │    Visualization                │  │
-│  │  - Service health      │    - Dashboards                 │  │
-│  │  - Pipeline metrics    │    - Alerts                     │  │
-│  │  - Resource usage      │    - Historical data            │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│              Monitoring Layer (Prometheus/Grafana)              │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Metrics Collection    │    Visualization                │   │
+│  │  - Service health      │    - Dashboards                 │   │
+│  │  - Pipeline metrics    │    - Alerts                     │   │
+│  │  - Resource usage      │    - Historical data            │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Architecture Principles
 
-1. **Separation of Concerns**: Each service has a single, well-defined responsibility
-2. **Loose Coupling**: Services communicate via well-defined interfaces
+1. **Separation of Concerns**: Each service has a single and defined responsibility
+2. **Loose Coupling**: Services communicate via defined interfaces
 3. **High Cohesion**: Related functionality is grouped together
 4. **Scalability**: Services can be scaled independently based on load
 5. **Resilience**: Failure in one service doesn't cascade to others
@@ -242,47 +242,7 @@ VenomFlow follows a modern microservices architecture with clear separation of c
 
 ---
 
-## 🛠️ Technology Stack
-
-### Core Technologies
-
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Orchestration** | Dagster | 1.5.12 | Data pipeline scheduling and monitoring |
-| **API** | FastAPI | 0.104+ | High-performance async web framework |
-| **GraphQL** | Strawberry | 0.214+ | GraphQL implementation for Python |
-| **Database** | PostgreSQL | 16 | Primary relational database |
-| **Cache** | Redis | 7 | Caching and message broker |
-| **Search** | Elasticsearch | 8.11 | Full-text search and analytics |
-| **Storage** | MinIO | Latest | S3-compatible object storage |
-| **Monitoring** | Prometheus | Latest | Metrics collection and alerting |
-| **Visualization** | Grafana | Latest | Metrics dashboards and alerts |
-| **Container** | Docker | 24.0+ | Containerization platform |
-
-### Python Libraries
-
-| Library | Version | Purpose |
-|---------|---------|---------|
-| **pydantic** | 2.5+ | Data validation and settings |
-| **sqlalchemy** | 2.0+ | Database ORM |
-| **psycopg2** | 2.9+ | PostgreSQL adapter |
-| **redis-py** | 5.0+ | Redis client |
-| **elasticsearch** | 8.11+ | Elasticsearch client |
-| **boto3** | 1.29+ | S3/MinIO client |
-| **pandas** | 2.1+ | Data manipulation |
-| **numpy** | 1.26+ | Numerical computing |
-| **biopython** | 1.83+ | Biological computation |
-
-### Development Tools
-
-- **Code Quality**: Black, isort, flake8, mypy
-- **Testing**: pytest, pytest-cov, pytest-asyncio
-- **Documentation**: Sphinx, MkDocs
-- **Version Control**: Git, GitHub
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 venomflow/
@@ -666,7 +626,7 @@ def test_peptide_validation():
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### Production Deployment
 
@@ -724,7 +684,7 @@ docker compose up -d --scale enrichment-worker=5
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 Comprehensive documentation is available in the `docs/` directory:
 
@@ -746,179 +706,3 @@ make html
 # View docs
 open _build/html/index.html
 ```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can help:
-
-### Ways to Contribute
-
-- 🐛 Report bugs and issues
-- 💡 Suggest new features
-- 📝 Improve documentation
-- 🔧 Submit pull requests
-- ⭐ Star the project on GitHub
-
-### Contribution Process
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes** (following code style guidelines)
-4. **Write tests** for new functionality
-5. **Ensure all tests pass** (`pytest`)
-6. **Commit your changes** (`git commit -m 'feat: add amazing feature'`)
-7. **Push to your fork** (`git push origin feature/amazing-feature`)
-8. **Open a Pull Request**
-
-### Code Style Guidelines
-
-- Follow PEP 8 for Python code
-- Use Black for code formatting
-- Use isort for import sorting
-- Add type hints to all functions
-- Write docstrings for public APIs
-- Keep functions small and focused
-- Add tests for new features
-
-### Commit Message Convention
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: add new feature
-fix: resolve bug in pipeline
-docs: update API documentation
-style: format code with black
-refactor: restructure validation logic
-test: add unit tests for enrichment
-chore: update dependencies
-```
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2024 VenomFlow Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-## 💬 Support
-
-### Getting Help
-
-- 📧 **Email**: support@venomflow.io
-- 💬 **Discord**: [Join our community](https://discord.gg/venomflow)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/Gasta88/venomflow/issues)
-- 📖 **Docs**: [Documentation](docs/)
-- 💡 **Discussions**: [GitHub Discussions](https://github.com/Gasta88/venomflow/discussions)
-
-### Reporting Issues
-
-When reporting issues, please include:
-
-1. VenomFlow version
-2. Operating system and version
-3. Docker and Docker Compose versions
-4. Steps to reproduce
-5. Expected vs actual behavior
-6. Relevant logs and error messages
-
-### Security Vulnerabilities
-
-If you discover a security vulnerability, please email security@venomflow.io instead of using the issue tracker.
-
----
-
-## 🙏 Acknowledgments
-
-VenomFlow is built with amazing open-source tools:
-
-- [Dagster](https://dagster.io/) - Data orchestration platform
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
-- [PostgreSQL](https://www.postgresql.org/) - Relational database
-- [Elasticsearch](https://www.elastic.co/) - Search and analytics
-- [Redis](https://redis.io/) - In-memory data store
-- [MinIO](https://min.io/) - Object storage
-- [Grafana](https://grafana.com/) - Observability platform
-- [Prometheus](https://prometheus.io/) - Monitoring system
-
-Special thanks to all contributors and the bioinformatics community!
-
----
-
-## 🗺️ Roadmap
-
-### Current Release (v1.0)
-- ✅ Core data pipeline infrastructure
-- ✅ Multi-source data ingestion
-- ✅ GraphQL API
-- ✅ Full-text search
-- ✅ Monitoring and alerting
-
-### Upcoming (v1.1)
-- 🔄 Machine learning models for property prediction
-- 🔄 Advanced visualization tools
-- 🔄 Batch analysis endpoints
-- 🔄 Enhanced BLAST integration
-
-### Future (v2.0)
-- 📅 Real-time data streaming
-- 📅 Federated search across databases
-- 📅 AI-powered peptide design
-- 📅 Collaborative research features
-- 📅 Public API marketplace
-
----
-
-## 📊 Project Status
-
-- **Status**: Active Development
-- **Version**: 1.0.0
-- **Last Updated**: 2024-01-24
-- **Maintainers**: [@Gasta88](https://github.com/Gasta88)
-- **Contributors**: See [CONTRIBUTORS.md](CONTRIBUTORS.md)
-
----
-
-## 📚 Additional Resources
-
-- **Project Website**: https://venomflow.io
-- **Blog**: https://blog.venomflow.io
-- **Twitter**: [@VenomFlowIO](https://twitter.com/VenomFlowIO)
-- **YouTube**: [VenomFlow Channel](https://youtube.com/venomflow)
-
----
-
-<div align="center">
-
-**[⬆ back to top](#-venomflow)**
-
-Made with ❤️ by the VenomFlow team
-
-</div>
