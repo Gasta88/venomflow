@@ -1,0 +1,42 @@
+# =============================================================================
+# DAGSTER ORCHESTRATION REQUIREMENTS
+# =============================================================================
+
+# Core Dagster
+dagster==1.5.12
+dagster-webserver==1.5.12
+dagster-postgres==0.21.12
+dagster-docker==0.21.12
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+
+# Redis for caching and event streaming
+redis==5.0.1
+
+# Elasticsearch client
+elasticsearch==8.11.0
+
+# MinIO/S3 client
+boto3==1.29.7
+minio==7.2.0
+
+# Data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# HTTP requests
+requests==2.31.0
+httpx==0.25.2
+
+# Configuration
+pydantic==2.5.2
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# Utilities
+python-dateutil==2.8.2

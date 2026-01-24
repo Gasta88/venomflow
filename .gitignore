@@ -16,82 +16,51 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-pip-log.txt
-pip-delete-this-directory.txt
 
-# Virtual Environments
+# Virtual Environment
 venv/
 ENV/
 env/
 .venv
-poetry.lock
 
-# PyCharm
-.idea/
-
-# VSCode
+# IDEs
 .vscode/
-*.code-workspace
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
+# Docker
+*.log
+.docker/
 
-# pytest
+# Environment variables
+.env
+.env.local
+
+# Dagster
+dagster_home/
+.dagster/
+dagster.yaml.bak
+
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
-.nox/
-
-# MyPy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Ruff
-.ruff_cache/
-
-# Environment Variables
-.env
-.env.local
-.env.*.local
-
-# Docker
-*.log
-docker-compose.override.yml
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
-postgres_data/
-redis_data/
 
-# OS
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
+# Jupyter
+.ipynb_checkpoints/
 
-# Temporary Files
-tmp/
-temp/
-*.tmp
-
-
-# Monitoring & Logs
-logs/
-*.log
-monitoring_data/
-
-# Documentation Build
-docs/_build/
-docs/.doctrees/
-site/
+# Monitoring
+monitoring/grafana/data/
+monitoring/prometheus/data/

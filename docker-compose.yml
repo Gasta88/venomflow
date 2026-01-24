@@ -1,0 +1,394 @@
+# =============================================================================
+# VENOMFLOW DOCKER COMPOSE CONFIGURATION
+# =============================================================================
+# Defines 8 core services for the VenomFlow microservices architecture:
+# 1. PostgreSQL - Primary database
+# 2. Redis - Cache and message streaming
+# 3. Elasticsearch - Full-text search engine
+# 4. MinIO - S3-compatible object storage
+# 5. Prometheus - Metrics collection
+# 6. Grafana - Metrics visualization
+# 7. Dagster Web - Orchestration UI
+# 8. Dagster Daemon - Pipeline execution engine
+
+services:
+  # ===========================================================================
+  # DATABASE - PostgreSQL
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: venomflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-venomflow}
+      POSTGRES_USER: ${POSTGRES_USER:-venomflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./shared/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - venomflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-venomflow_user} -d ${POSTGRES_DB:-venomflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # CACHE - Redis
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: venomflow-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme_redis_password}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - venomflow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # SEARCH ENGINE - Elasticsearch
+  # ===========================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: venomflow-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme_elastic_password}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "${ELASTIC_PORT:-9200}:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - venomflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD:-changeme_elastic_password} http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # OBJECT STORAGE - MinIO
+  # ===========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: venomflow-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-changeme_minio_secret}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - venomflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # MinIO Client - Create buckets on startup
+  # ===========================================================================
+  minio-init:
+    image: minio/mc:latest
+    container_name: venomflow-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-changeme_minio_secret};
+      /usr/bin/mc mb myminio/${MINIO_BUCKET_NAME:-venomflow-data} --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/${MINIO_BUCKET_NAME:-venomflow-data};
+      exit 0;
+      "
+    networks:
+      - venomflow-network
+
+  # ===========================================================================
+  # MONITORING - Prometheus
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: venomflow-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - venomflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # MONITORING - Grafana
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: venomflow-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme_grafana_password}
+      GF_SERVER_HTTP_PORT: 3001
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3001
+    ports:
+      - "${GRAFANA_PORT:-3001}:3001"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - venomflow-network
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # ORCHESTRATION - Dagster Web Server
+  # ===========================================================================
+  dagster-webserver:
+    build:
+      context: ./dagster
+      dockerfile: Dockerfile
+    container_name: venomflow-dagster-webserver
+    restart: unless-stopped
+    environment:
+      DAGSTER_POSTGRES_USER: ${DAGSTER_POSTGRES_USER:-dagster_user}
+      DAGSTER_POSTGRES_PASSWORD: ${DAGSTER_POSTGRES_PASSWORD:-changeme_dagster_password}
+      DAGSTER_POSTGRES_DB: ${DAGSTER_POSTGRES_DB:-dagster}
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: ${DAGSTER_POSTGRES_PORT:-5432}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-venomflow}
+      POSTGRES_USER: ${POSTGRES_USER:-venomflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres_password}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_password}
+      ELASTIC_HOST: ${ELASTIC_HOST:-elasticsearch}
+      ELASTIC_PORT: ${ELASTIC_PORT:-9200}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-changeme_elastic_password}
+      MINIO_HOST: ${MINIO_HOST:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-changeme_minio_secret}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dagster:/opt/dagster/app
+      - ./shared:/opt/dagster/shared
+      - dagster_home:/opt/dagster/dagster_home
+    networks:
+      - venomflow-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      dagster-webserver
+      -h 0.0.0.0
+      -p 3000
+      -w /opt/dagster/app/workspace.yaml
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/server_info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # ORCHESTRATION - Dagster Daemon
+  # ===========================================================================
+  dagster-daemon:
+    build:
+      context: ./dagster
+      dockerfile: Dockerfile
+    container_name: venomflow-dagster-daemon
+    restart: unless-stopped
+    environment:
+      DAGSTER_POSTGRES_USER: ${DAGSTER_POSTGRES_USER:-dagster_user}
+      DAGSTER_POSTGRES_PASSWORD: ${DAGSTER_POSTGRES_PASSWORD:-changeme_dagster_password}
+      DAGSTER_POSTGRES_DB: ${DAGSTER_POSTGRES_DB:-dagster}
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: ${DAGSTER_POSTGRES_PORT:-5432}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-venomflow}
+      POSTGRES_USER: ${POSTGRES_USER:-venomflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres_password}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_password}
+      ELASTIC_HOST: ${ELASTIC_HOST:-elasticsearch}
+      ELASTIC_PORT: ${ELASTIC_PORT:-9200}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-changeme_elastic_password}
+      MINIO_HOST: ${MINIO_HOST:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-changeme_minio_secret}
+    volumes:
+      - ./dagster:/opt/dagster/app
+      - ./shared:/opt/dagster/shared
+      - dagster_home:/opt/dagster/dagster_home
+    networks:
+      - venomflow-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: dagster-daemon run
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  venomflow-network:
+    name: venomflow-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# VOLUMES - Persistent Data Storage
+# =============================================================================
+volumes:
+  # Database
+  postgres_data:
+    name: venomflow-postgres-data
+    driver: local
+
+  # Cache
+  redis_data:
+    name: venomflow-redis-data
+    driver: local
+
+  # Search Engine
+  elasticsearch_data:
+    name: venomflow-elasticsearch-data
+    driver: local
+
+  # Object Storage
+  minio_data:
+    name: venomflow-minio-data
+    driver: local
+
+  # Monitoring
+  prometheus_data:
+    name: venomflow-prometheus-data
+    driver: local
+
+  grafana_data:
+    name: venomflow-grafana-data
+    driver: local
+
+  # Orchestration
+  dagster_home:
+    name: venomflow-dagster-home
+    driver: local

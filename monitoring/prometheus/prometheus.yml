@@ -1,0 +1,73 @@
+# =============================================================================
+# PROMETHEUS CONFIGURATION
+# =============================================================================
+# Defines scrape targets for metrics collection in VenomFlow
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'venomflow'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # PostgreSQL metrics (requires postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: []  # Add postgres_exporter:9187 when available
+        labels:
+          service: 'postgres'
+
+  # Redis metrics (requires redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: []  # Add redis_exporter:9121 when available
+        labels:
+          service: 'redis'
+
+  # Elasticsearch metrics
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: []  # Add elasticsearch:9200/_prometheus/metrics when available
+        labels:
+          service: 'elasticsearch'
+
+  # MinIO metrics
+  - job_name: 'minio'
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ['minio:9000']
+        labels:
+          service: 'minio'
+
+  # Dagster metrics (requires instrumentation)
+  - job_name: 'dagster'
+    static_configs:
+      - targets: []  # Add dagster-webserver:3000/metrics when available
+        labels:
+          service: 'dagster'
+
+  # FastAPI application metrics (requires prometheus client)
+  - job_name: 'api'
+    static_configs:
+      - targets: []  # Add api:8000/metrics when available
+        labels:
+          service: 'api'
