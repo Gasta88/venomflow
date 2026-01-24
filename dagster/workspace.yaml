@@ -1,0 +1,10 @@
+# =============================================================================
+# DAGSTER WORKSPACE CONFIGURATION
+# =============================================================================
+# Defines code locations for Dagster to load
+
+load_from:
+  - python_package:
+      package_name: dagster
+      location_name: venomflow_pipelines
+      working_directory: /opt/dagster/app
