@@ -268,15 +268,13 @@ def test_triggers():
         organism_id = uuid4()
         
         db.execute(text("""
-            INSERT INTO organisms (id, name, venom_type, source, created_at, updated_at)
-            VALUES (:id, :name, :venom_type, :source, :created, :updated)
+            INSERT INTO organisms (id, name, venom_type, source)
+            VALUES (:id, :name, :venom_type, :source)
         """), {
             "id": str(organism_id),
             "name": "Trigger Test",
             "venom_type": "snake",
-            "source": "manual",
-            "created": datetime.now(),
-            "updated": datetime.now()
+            "source": "manual"
         })
         
         db.commit()
@@ -290,7 +288,7 @@ def test_triggers():
         
         # Wait a moment and update
         import time
-        time.sleep(0.1)
+        time.sleep(1.0)
         
         db.execute(text("""
             UPDATE organisms SET name = :name WHERE id = :id
