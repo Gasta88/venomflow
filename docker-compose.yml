@@ -29,7 +29,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./shared/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./shared/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     networks:
       - venomflow-network
     healthcheck:
