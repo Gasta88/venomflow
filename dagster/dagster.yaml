@@ -33,22 +33,6 @@ local_artifact_storage:
   config:
     base_dir: /opt/dagster/dagster_home/storage
 
-# Scheduler (optional - for scheduled runs)
-scheduler:
-  module: dagster.core.scheduler
-  class: DagsterDaemonScheduler
-
-# Sensor evaluation interval
-sensor_evaluation:
-  num_workers: 4
-  num_submit_workers: 4
-
-# Run monitoring
-run_monitoring:
-  enabled: true
-  poll_interval_seconds: 120
-  max_resume_run_attempts: 3
-
 # Telemetry
 telemetry:
   enabled: false

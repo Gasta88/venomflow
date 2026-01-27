@@ -52,6 +52,7 @@ dagster.yaml.bak
 .coverage
 htmlcov/
 .tox/
+.ruff_cache/
 
 # Database
 *.db
@@ -64,3 +65,8 @@ htmlcov/
 # Monitoring
 monitoring/grafana/data/
 monitoring/prometheus/data/
+
+# Specs-driven assets
+findings.md
+progress.md
+task_plan.md
