@@ -67,6 +67,4 @@ monitoring/grafana/data/
 monitoring/prometheus/data/
 
 # Specs-driven assets
-findings.md
-progress.md
-task_plan.md
+specs/
