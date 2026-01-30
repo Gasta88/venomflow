@@ -13,8 +13,9 @@ from dagster import (
     MetadataValue,
 )
 import pandas as pd
-import requests
 from datetime import datetime
+
+from assets import venom_peptides_uniprot
 
 
 @asset(
@@ -162,6 +163,7 @@ def validation_report(
 # Create the Dagster definitions
 defs = Definitions(
     assets=[
+        venom_peptides_uniprot,
         sample_protein_data,
         processed_protein_data,
         validation_report,
