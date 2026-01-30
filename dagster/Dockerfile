@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     postgresql-client \
     curl \
+    ncbi-blast+ \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application directory
@@ -25,7 +26,8 @@ WORKDIR /opt/dagster/app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir rdkit biopython
 
 # Copy application code
 COPY . .
