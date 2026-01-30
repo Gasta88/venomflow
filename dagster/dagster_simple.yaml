@@ -1,0 +1,4 @@
+# Simple Dagster configuration for testing
+storage:
+  postgres:
+    postgres_url: "postgresql://dagster_user:dagster_password@postgres:5432/dagster"
