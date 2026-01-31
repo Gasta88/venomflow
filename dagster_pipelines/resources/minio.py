@@ -160,7 +160,7 @@ minio_resource = MinIOResource.configure_at_launch(
     endpoint=dg.EnvVar("MINIO_ENDPOINT"),
     access_key=dg.EnvVar("MINIO_ACCESS_KEY"),
     secret_key=dg.EnvVar("MINIO_SECRET_KEY"),
-    region=dg.EnvVar("MINIO_REGION", default="us-east-1"),
-    secure=dg.EnvVar("MINIO_SECURE", default="true"),
+    region=dg.EnvVar("MINIO_REGION"),
+    secure=dg.EnvVar("MINIO_SECURE"),
     http_client=dg.EnvVar("MINIO_HTTP_CLIENT"),
 )

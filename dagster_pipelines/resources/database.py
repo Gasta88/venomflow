@@ -137,11 +137,11 @@ class DatabaseResource(dg.ConfigurableResource):
 # Configure resource to use environment variables by default
 database_resource = DatabaseResource.configure_at_launch(
     database_url=dg.EnvVar("DATABASE_URL"),
-    host=dg.EnvVar("DATABASE_HOST", default="localhost"),
-    port=dg.EnvVar("DATABASE_PORT", default="5432"),
+    host=dg.EnvVar("DATABASE_HOST"),
+    port=dg.EnvVar("DATABASE_PORT"),
     database=dg.EnvVar("DATABASE_NAME"),
     username=dg.EnvVar("DATABASE_USER"),
     password=dg.EnvVar("DATABASE_PASSWORD"),
-    pool_size=dg.EnvVar("DATABASE_POOL_SIZE", default="5"),
-    max_overflow=dg.EnvVar("DATABASE_MAX_OVERFLOW", default="10"),
+    pool_size=dg.EnvVar("DATABASE_POOL_SIZE"),
+    max_overflow=dg.EnvVar("DATABASE_MAX_OVERFLOW"),
 )

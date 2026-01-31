@@ -127,11 +127,11 @@ class RedisResource(dg.ConfigurableResource):
 # Configure resource to use environment variables by default
 redis_resource = RedisResource.configure_at_launch(
     redis_url=dg.EnvVar("REDIS_URL"),
-    host=dg.EnvVar("REDIS_HOST", default="localhost"),
-    port=dg.EnvVar("REDIS_PORT", default="6379"),
-    db=dg.EnvVar("REDIS_DB", default="0"),
+    host=dg.EnvVar("REDIS_HOST"),
+    port=dg.EnvVar("REDIS_PORT"),
+    db=dg.EnvVar("REDIS_DB"),
     password=dg.EnvVar("REDIS_PASSWORD"),
-    socket_timeout=dg.EnvVar("REDIS_SOCKET_TIMEOUT", default="5.0"),
-    socket_connect_timeout=dg.EnvVar("REDIS_SOCKET_CONNECT_TIMEOUT", default="5.0"),
-    max_connections=dg.EnvVar("REDIS_MAX_CONNECTIONS", default=None),
+    socket_timeout=dg.EnvVar("REDIS_SOCKET_TIMEOUT"),
+    socket_connect_timeout=dg.EnvVar("REDIS_SOCKET_CONNECT_TIMEOUT"),
+    max_connections=dg.EnvVar("REDIS_MAX_CONNECTIONS"),
 )

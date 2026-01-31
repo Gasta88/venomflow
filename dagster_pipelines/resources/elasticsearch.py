@@ -5,7 +5,6 @@ from typing import Optional, Dict, Any
 import dagster as dg
 from pydantic import Field, PrivateAttr
 from elasticsearch import Elasticsearch
-from elasticsearch.client import ElasticsearchClient
 
 
 class ElasticsearchResource(dg.ConfigurableResource):
@@ -73,7 +72,7 @@ class ElasticsearchResource(dg.ConfigurableResource):
     )
 
     # Private attributes for storing client instance
-    _client: Optional[ElasticsearchClient] = PrivateAttr(default=None)
+    _client: Optional["Elasticsearch"] = PrivateAttr(default=None)
 
     def _build_hosts_config(self) -> list:
         """Build hosts configuration for Elasticsearch client."""
@@ -130,7 +129,7 @@ class ElasticsearchResource(dg.ConfigurableResource):
 
         return ssl_config
 
-    def get_client(self) -> ElasticsearchClient:
+    def get_client(self) -> "Elasticsearch":
         """
         Get Elasticsearch client for search operations.
 
@@ -179,13 +178,13 @@ class ElasticsearchResource(dg.ConfigurableResource):
 elasticsearch_resource = ElasticsearchResource.configure_at_launch(
     elasticsearch_url=dg.EnvVar("ELASTICSEARCH_URL"),
     hosts=dg.EnvVar("ELASTICSEARCH_HOST"),
-    port=dg.EnvVar("ELASTICSEARCH_PORT", default="9200"),
+    port=dg.EnvVar("ELASTICSEARCH_PORT"),
     username=dg.EnvVar("ELASTICSEARCH_USERNAME"),
     password=dg.EnvVar("ELASTICSEARCH_PASSWORD"),
     api_key=dg.EnvVar("ELASTICSEARCH_API_KEY"),
-    timeout=dg.EnvVar("ELASTICSEARCH_TIMEOUT", default="30"),
-    max_retries=dg.EnvVar("ELASTICSEARCH_MAX_RETRIES", default="3"),
-    retry_on_timeout=dg.EnvVar("ELASTICSEARCH_RETRY_ON_TIMEOUT", default="true"),
-    verify_certs=dg.EnvVar("ELASTICSEARCH_VERIFY_CERTS", default="true"),
+    timeout=dg.EnvVar("ELASTICSEARCH_TIMEOUT"),
+    max_retries=dg.EnvVar("ELASTICSEARCH_MAX_RETRIES"),
+    retry_on_timeout=dg.EnvVar("ELASTICSEARCH_RETRY_ON_TIMEOUT"),
+    verify_certs=dg.EnvVar("ELASTICSEARCH_VERIFY_CERTS"),
     ca_certs=dg.EnvVar("ELASTICSEARCH_CA_CERTS"),
 )

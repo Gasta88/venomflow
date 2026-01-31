@@ -265,7 +265,7 @@ venomflow/
 │   │   └── search.py                   # Search services
 │   └── tests/                          # API tests
 │
-├── 📂 dagster/                         # Dagster orchestration
+├── 📂 dagster_pipelines/               # Dagster orchestration
 │   ├── Dockerfile                      # Dagster container definition
 │   ├── requirements.txt                # Dagster dependencies
 │   ├── dagster.yaml                    # Dagster configuration
@@ -326,12 +326,12 @@ venomflow/
 
 1. **Clone and install dependencies**
    ```bash
-   git clone https://github.com/Gasta88/venomflow.git
-   cd venomflow
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r dagster/requirements.txt
-   pip install -r api/requirements.txt
+git clone https://github.com/Gasta88/venomflow.git
+cd venomflow
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r dagster_pipelines/requirements.txt
+pip install -r api/requirements.txt
    ```
 
 2. **Install development tools**
@@ -350,10 +350,10 @@ venomflow/
     ```
 
 5. **Start development servers**
-   ```bash
-   # Terminal 1: Dagster
-   cd dagster
-   dagster dev
+```bash
+    # Terminal 1: Dagster
+    cd dagster_pipelines
+    dagster dev
 
    # Terminal 2: API
    cd api
@@ -516,7 +516,7 @@ VenomFlow uses Dagster for orchestrating data pipelines with the following stage
 # Navigate to http://localhost:3000 and click "Launchpad"
 
 # Via CLI
-dagster job execute -m dagster -j venomflow_pipeline
+dagster job execute -m dagster_pipelines -j venomflow_pipeline
 
 # Schedule-based execution
 # Pipelines run automatically based on configured schedules

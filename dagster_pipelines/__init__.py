@@ -16,6 +16,8 @@ import pandas as pd
 from datetime import datetime
 
 from assets import venom_peptides_uniprot
+from assets.enrichment import compute_peptide_properties
+from resources import database_resource
 
 
 @asset(
@@ -167,6 +169,10 @@ defs = Definitions(
         sample_protein_data,
         processed_protein_data,
         validation_report,
+        compute_peptide_properties,
     ],
+    resources={
+        "database": database_resource,
+    },
     asset_checks=[],  # Can add data quality checks here
 )

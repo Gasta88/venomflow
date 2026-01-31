@@ -165,16 +165,20 @@ CREATE TABLE IF NOT EXISTS properties (
     peptide_id UUID NOT NULL UNIQUE REFERENCES peptides(id) ON DELETE CASCADE,
     molecular_formula VARCHAR(255),
     isoelectric_point DECIMAL(4, 2),
-    hydrophobicity DECIMAL(6, 3),  -- Grand average of hydropathicity (GRAVY)
+    hydrophobicity DECIMAL(6, 3),
     charge_at_ph7 DECIMAL(6, 3),
     instability_index DECIMAL(6, 2),
     aliphatic_index DECIMAL(6, 2),
     aromaticity DECIMAL(5, 4),
-    molar_extinction DECIMAL(10, 2),  -- at 280nm
-    half_life_mammalian INTEGER,  -- seconds
-    amino_acid_composition JSONB,  -- Composition by residue
+    molar_extinction DECIMAL(10, 2),
+    half_life_mammalian INTEGER,
+    amino_acid_composition JSONB,
+    logp DECIMAL(4, 3),
+    tpsa DECIMAL(6, 2),
+    num_h_donors INTEGER,
+    num_h_acceptors INTEGER,
     calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    calculation_method VARCHAR(100),  -- Tool/method used for calculation
+    calculation_method VARCHAR(100),
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -185,6 +189,10 @@ CREATE INDEX idx_properties_peptide_id ON properties(peptide_id);
 CREATE INDEX idx_properties_isoelectric_point ON properties(isoelectric_point);
 CREATE INDEX idx_properties_hydrophobicity ON properties(hydrophobicity);
 CREATE INDEX idx_properties_instability_index ON properties(instability_index);
+CREATE INDEX idx_properties_logp ON properties(logp);
+CREATE INDEX idx_properties_tpsa ON properties(tpsa);
+CREATE INDEX idx_properties_num_h_donors ON properties(num_h_donors);
+CREATE INDEX idx_properties_num_h_acceptors ON properties(num_h_acceptors);
 
 -- ----------------------------------------------------------------------------
 -- 6. PEPTIDE_SIMILARITIES TABLE
@@ -459,7 +467,7 @@ COMMENT ON TABLE organisms IS 'Stores organism taxonomy and venom classification
 COMMENT ON TABLE peptides IS 'Core peptide sequences with metadata and quality scores';
 COMMENT ON TABLE bioactivity IS 'Biological activity measurements and assay results';
 COMMENT ON TABLE structures IS '3D structural data (experimental and predicted)';
-COMMENT ON TABLE properties IS 'Calculated physicochemical properties';
+COMMENT ON TABLE properties IS 'Calculated physicochemical properties including RDKit molecular descriptors';
 COMMENT ON TABLE peptide_similarities IS 'Sequence similarity relationships for screening';
 COMMENT ON TABLE pipeline_runs IS 'Data pipeline execution tracking for lineage';
 COMMENT ON TABLE screening_jobs IS 'Virtual screening batch job management';
@@ -470,6 +478,11 @@ COMMENT ON COLUMN peptides.quality_score IS 'Data completeness score (0.00-1.00)
 COMMENT ON COLUMN bioactivity.confidence_level IS 'Reliability of bioactivity data';
 COMMENT ON COLUMN peptide_similarities.similarity_score IS 'Normalized similarity score for screening';
 COMMENT ON COLUMN screening_jobs.parameters IS 'JSON parameters for screening job execution';
+COMMENT ON COLUMN properties.logp IS 'LogP (octanol-water partition coefficient) from RDKit';
+COMMENT ON COLUMN properties.tpsa IS 'Topological polar surface area (Å²) from RDKit';
+COMMENT ON COLUMN properties.num_h_donors IS 'Number of hydrogen bond donors';
+COMMENT ON COLUMN properties.num_h_acceptors IS 'Number of hydrogen bond acceptors';
+COMMENT ON COLUMN properties.hydrophobicity IS 'Grand average of hydropathicity (GRAVY) from BioPython ProtParam';
 
 -- View comments
 COMMENT ON VIEW peptides_enriched IS 'Denormalized view joining peptides with related data for API queries';

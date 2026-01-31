@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 from datetime import datetime
 
-from dagster.assets.ingestion import venom_peptides_uniprot
+from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
 
 
 class TestVenomPeptidesUniprotAPI:

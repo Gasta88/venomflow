@@ -241,7 +241,7 @@ services:
   # ===========================================================================
   dagster-webserver:
     build:
-      context: ./dagster
+      context: ./dagster_pipelines
       dockerfile: Dockerfile
     container_name: venomflow-dagster-webserver
     restart: unless-stopped
@@ -269,7 +269,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./dagster:/opt/dagster/app
+      - ./dagster_pipelines:/opt/dagster/app
       - ./shared:/opt/dagster/shared
       - dagster_home:/opt/dagster/dagster_home
     networks:
@@ -301,7 +301,7 @@ services:
   # ===========================================================================
   dagster-daemon:
     build:
-      context: ./dagster
+      context: ./dagster_pipelines
       dockerfile: Dockerfile
     container_name: venomflow-dagster-daemon
     restart: unless-stopped
@@ -327,7 +327,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-changeme_minio_secret}
     volumes:
-      - ./dagster:/opt/dagster/app
+      - ./dagster_pipelines:/opt/dagster/app
       - ./shared:/opt/dagster/shared
       - dagster_home:/opt/dagster/dagster_home
     networks:

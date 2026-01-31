@@ -19,7 +19,7 @@
 
 | Component | Technology | Purpose | Key Details |
 |-----------|-----------|---------|-------------|
-| **Orchestration** | Dagster 1.5+ | Asset-based data pipelines | Assets organized in `dagster/assets/` by function |
+| **Orchestration** | Dagster 1.5+ | Asset-based data pipelines | Assets organized in `dagster_pipelines/assets/` by function |
 | **API** | FastAPI 0.109+ + Strawberry | GraphQL endpoint | Resolvers in `api/resolvers/`, schema in `api/schema/` |
 | **Database** | PostgreSQL 16 | Primary data store | Schema: `shared/database/schema.sql` |
 | **Cache** | Redis 7 | Job queues, caching | Stream-based event processing |
@@ -37,7 +37,7 @@ venomflow/
 ├── Makefile                    # Common commands (use `make help`)
 ├── .env.example                # Environment variables template
 │
-├── dagster/                    # Dagster orchestration
+├── dagster_pipelines/          # Dagster orchestration
 │   ├── Dockerfile              # Dagster container image
 │   ├── workspace.yaml          # Dagster workspace config
 │   ├── dagster.yaml            # Dagster settings
@@ -150,7 +150,7 @@ venomflow/
 - **Context**: Use `AssetExecutionContext` for logging
 - **Dependencies**: Specify deps as function parameters
 - **Metadata**: Return row counts, timestamps, quality scores
-- **Location**: `dagster/assets/`
+- **Location**: `dagster_pipelines/assets/`
 
 ### GraphQL Schema Convention (FastAPI + Strawberry)
 - **Schema files**: `api/schema/queries.py`, `mutations.py`, `subscriptions.py`
@@ -191,7 +191,7 @@ python3 scripts/verify_infrastructure.py
 # Navigate to http://localhost:3000
 
 # Via CLI
-docker exec venomflow-dagster-daemon dagster job execute -m dagster -j <job_name>
+docker exec venomflow-dagster-daemon dagster job execute -m dagster_pipelines -j <job_name>
 
 # Run tests
 make test
@@ -247,8 +247,8 @@ mypy .
 | `docker-compose.yml` | Service definitions | 8 services: postgres, redis, elasticsearch, minio, prometheus, grafana, dagster-webserver, dagster-daemon |
 | `shared/database/schema.sql` | Database schema | 8 tables, UUID PKs, triggers, views, quality function |
 | `shared/config/settings.py` | Config management | Pydantic BaseSettings, all env vars defined |
-| `dagster/__init__.py` | Dagster definitions | Main entry point for assets |
-| `dagster/assets/` | Data pipeline logic | Ingestion, validation, enrichment |
+| `dagster_pipelines/__init__.py` | Dagster definitions | Main entry point for assets |
+| `dagster_pipelines/assets/` | Data pipeline logic | Ingestion, validation, enrichment |
 | `api/main.py` | FastAPI entry point | GraphQL server setup |
 | `shared/models/` | Data models | Pydantic models with validation |
 | `scripts/verify_infrastructure.py` | Health check script | Tests all service connectivity |
@@ -299,7 +299,7 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 
 | Task | Where to Start | Notes |
 |------|---------------|-------|
-| **Fetch UniProt data** | `dagster/assets/ingestion.py` | Implements rate limiting, pagination |
+| **Fetch UniProt data** | `dagster_pipelines/assets/ingestion.py` | Implements rate limiting, pagination |
 | **Validate sequences** | `shared/utils/validators.py` | Regex validation for amino acids |
 | **Compute properties** | `workers/enrichment_worker.py` | RDKit for cheminformatics |
 | **BLAST similarity** | `workers/blast_runner.py` | Uses NCBI BLAST+ |
@@ -307,13 +307,13 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 | **Database query** | `shared/database/connection.py` | Connection pooling |
 | **Elasticsearch search** | `api/services/search.py` | Full-text and k-mer search |
 | **Add new API endpoint** | `api/schema/queries.py`, `api/resolvers/` | Schema + resolver pattern |
-| **Add new Dagster asset** | `dagster/assets/` | Create asset, add to `dagster/__init__.py` defs |
+| **Add new Dagster asset** | `dagster_pipelines/assets/` | Create asset, add to `dagster_pipelines/__init__.py` defs |
 | **Configure logging** | `.env` file | `app_log_level` variable |
 
 ## Testing Approach
 
 - **Unit tests**: Test individual functions in `tests/unit/`
-- **Dagster tests**: Test assets in `dagster/tests/`
+- **Dagster tests**: Test assets in `dagster_pipelines/tests/`
 - **Run command**: `make test` or `make test-cov`
 - **Coverage**: HTML reports in `htmlcov/`
 
