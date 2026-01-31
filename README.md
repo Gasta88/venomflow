@@ -26,7 +26,7 @@
 - [Monitoring & Observability](#-monitoring--observability)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
-- [Documentation](#-documentation)
+
 - [Contributing](#-contributing)
 - [License](#-license)
 - [Support](#-support)
@@ -316,12 +316,6 @@ venomflow/
 │   ├── unit/                           # Unit tests
 │   ├── integration/                    # Integration tests
 │   └── fixtures/                       # Test fixtures
-│
-└── 📂 docs/                            # Documentation
-    ├── architecture.md                 # Architecture deep dive
-    ├── api-reference.md                # API documentation
-    ├── data-dictionary.md              # Data model reference
-    └── deployment-guide.md             # Deployment instructions
 ```
 
 ---
@@ -351,9 +345,9 @@ venomflow/
    ```
 
 4. **Run database migrations**
-   ```bash
-   ./scripts/init_database.sh
-   ```
+    ```bash
+    make init-db
+    ```
 
 5. **Start development servers**
    ```bash
@@ -378,7 +372,7 @@ flake8 .
 mypy .
 
 # Test
-pytest tests/ -v --cov=.
+make test
 ```
 
 ### Git Workflow
@@ -444,7 +438,7 @@ API_PORT=8000
 API_SECRET_KEY=your_32_character_secret_key_here
 ```
 
-See [Configuration Documentation](docs/deployment-guide.md#configuration) for all options.
+---
 
 ---
 
@@ -501,8 +495,6 @@ mutation CreatePeptide {
   }
 }
 ```
-
-See [API Reference](docs/api-reference.md) for complete documentation.
 
 ---
 
@@ -569,13 +561,13 @@ Logs are collected in JSON format and available via:
 
 ```bash
 # All services
-docker compose logs -f
+make logs
 
 # Specific service
-docker compose logs -f dagster-webserver
+make logs-dagster-webserver
 
 # With grep
-docker compose logs -f | grep ERROR
+make logs | grep ERROR
 ```
 
 ---
@@ -586,19 +578,19 @@ docker compose logs -f | grep ERROR
 
 ```bash
 # All tests
-pytest
+make test
 
 # Unit tests only
-pytest tests/unit/
+make test tests/unit/
 
 # Integration tests
-pytest tests/integration/
+make test tests/integration/
 
 # With coverage
-pytest --cov=. --cov-report=html
+make test-cov
 
 # Specific test file
-pytest tests/unit/test_peptide.py -v
+make test tests/unit/test_peptide.py -v
 ```
 
 ### Test Categories
@@ -630,8 +622,6 @@ def test_peptide_validation():
 
 ### Production Deployment
 
-See [Deployment Guide](docs/deployment-guide.md) for detailed instructions.
-
 **Quick production setup:**
 
 ```bash
@@ -654,7 +644,7 @@ docker compose -f docker-compose.prod.yml up -d
 docker compose exec dagster-webserver python scripts/migrate.py
 
 # 6. Verify deployment
-docker compose ps
+make ps
 curl http://your-domain/health
 ```
 
@@ -676,33 +666,10 @@ curl http://your-domain/health
 
 ```bash
 # Scale API service
-docker compose up -d --scale api=3
+make up --scale api=3
 
 # Scale workers
-docker compose up -d --scale enrichment-worker=5
+make up --scale enrichment-worker=5
 ```
 
 ---
-
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory:
-
-- **[Architecture Overview](docs/architecture.md)**: System design and component interactions
-- **[API Reference](docs/api-reference.md)**: Complete API documentation with examples
-- **[Data Dictionary](docs/data-dictionary.md)**: Database schema and data models
-- **[Deployment Guide](docs/deployment-guide.md)**: Production deployment instructions
-
-### Building Documentation
-
-```bash
-# Install dependencies
-pip install sphinx sphinx-rtd-theme
-
-# Build docs
-cd docs
-make html
-
-# View docs
-open _build/html/index.html
-```
