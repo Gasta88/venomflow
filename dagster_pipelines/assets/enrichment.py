@@ -11,16 +11,15 @@ from typing import Any, Dict, List
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from dagster import (AssetExecutionContext, MaterializeResult, MetadataValue,
-                     asset)
+from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 
 sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 # flake8: noqa: E402
 
 
-from .property_calculators import (compute_biopython_properties,
-                                                 compute_rdkit_properties)
+from .property_calculators import compute_biopython_properties, compute_rdkit_properties
 from resources.database import DatabaseResource
 
 logger = logging.getLogger(__name__)
@@ -67,8 +66,7 @@ def compute_peptide_properties(
         - error_count: Number of failures
         - avg_logp, avg_tpsa, avg_isoelectric_point, avg_hydrophobicity
     """
-    engine = database.get_client()
-    session = Session(engine)
+    session = database.get_session()
 
     peptides_processed = 0
     properties_computed = 0
@@ -115,7 +113,7 @@ def compute_peptide_properties(
         properties_list: List[Dict[str, Any]] = []
 
         for i in range(0, total_peptides, BATCH_SIZE):
-            batch = peptides_data[i:i + BATCH_SIZE]
+            batch = peptides_data[i : i + BATCH_SIZE]
             batch_num = (i // BATCH_SIZE) + 1
             total_batches = (total_peptides + BATCH_SIZE - 1) // BATCH_SIZE
 
@@ -301,4 +299,4 @@ def _batch_insert_properties(
 
     result = session.execute(insert_query, properties_list)
 
-    return len(list(result))
+    return result.rowcount

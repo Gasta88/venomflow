@@ -266,12 +266,14 @@ services:
       MINIO_PORT: ${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-changeme_minio_secret}
+      PYTHONPATH: /opt/dagster
     ports:
       - "3000:3000"
     volumes:
       - ./dagster_pipelines:/opt/dagster/app
       - ./shared:/opt/dagster/shared
       - dagster_home:/opt/dagster/dagster_home
+      - ./data/blast:/data/blast
     networks:
       - venomflow-network
     depends_on:
@@ -326,10 +328,12 @@ services:
       MINIO_PORT: ${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-changeme_minio_secret}
+      PYTHONPATH: /opt/dagster
     volumes:
       - ./dagster_pipelines:/opt/dagster/app
       - ./shared:/opt/dagster/shared
       - dagster_home:/opt/dagster/dagster_home
+      - ./data/blast:/data/blast
     networks:
       - venomflow-network
     depends_on:

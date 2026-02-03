@@ -1,11 +1,12 @@
-"""Redis resource for Dagster using redis-py."""
+"""Redis resource for Dagster using shared/config/settings."""
 
-import os
 from typing import Optional
 import dagster as dg
 from pydantic import Field, PrivateAttr
 import redis
 from redis.client import Redis
+
+from shared.config.settings import settings
 
 
 class RedisResource(dg.ConfigurableResource):
@@ -13,47 +14,19 @@ class RedisResource(dg.ConfigurableResource):
     Configurable Redis resource for caching and session storage.
 
     This resource provides a get_client() method that returns a Redis client
-    for cache operations. Configuration is loaded from environment variables.
-
-    Environment variables:
-        - REDIS_URL: Full Redis connection URL
-        - REDIS_HOST: Redis host (optional if REDIS_URL provided)
-        - REDIS_PORT: Redis port (optional if REDIS_URL provided)
-        - REDIS_DB: Redis database number (optional if REDIS_URL provided)
-        - REDIS_PASSWORD: Redis password (optional)
+    for cache operations. Configuration is loaded via shared/config/settings
+    which automatically loads environment variables from .env file.
     """
 
-    # Redis connection configuration
-    redis_url: Optional[str] = Field(
-        default=None,
-        description="Full Redis connection URL. If provided, other connection fields are ignored.",
-    )
-
-    host: str = Field(
-        default="localhost",
-        description="Redis host. Used if redis_url is not provided.",
-    )
-
-    port: int = Field(
-        default=6379, description="Redis port. Used if redis_url is not provided."
-    )
-
-    db: int = Field(
-        default=0,
-        description="Redis database number. Used if redis_url is not provided.",
-    )
-
-    password: Optional[str] = Field(
-        default=None, description="Redis password. Optional."
-    )
-
-    # Connection settings
+    # Connection settings (can be overridden via YAML)
     socket_timeout: Optional[float] = Field(
-        default=5.0, description="Timeout in seconds for socket operations."
+        default=None,
+        description="Timeout in seconds for socket operations. Defaults to settings.redis_socket_timeout.",
     )
 
     socket_connect_timeout: Optional[float] = Field(
-        default=5.0, description="Timeout in seconds for connecting to Redis."
+        default=None,
+        description="Timeout in seconds for connecting to Redis. Defaults to settings.redis_socket_connect_timeout.",
     )
 
     max_connections: Optional[int] = Field(
@@ -66,28 +39,16 @@ class RedisResource(dg.ConfigurableResource):
 
     def _get_connection_params(self) -> dict:
         """Get connection parameters for Redis client."""
-        if self.redis_url:
-            return {"url": self.redis_url}
-
-        params = {
-            "host": self.host,
-            "port": self.port,
-            "db": self.db,
+        return {
+            "url": settings.redis_url,
+            "socket_timeout": self.socket_timeout
+            if self.socket_timeout is not None
+            else settings.redis_socket_timeout,
+            "socket_connect_timeout": self.socket_connect_timeout
+            if self.socket_connect_timeout is not None
+            else settings.redis_socket_connect_timeout,
+            "max_connections": self.max_connections,
         }
-
-        if self.password:
-            params["password"] = self.password
-
-        if self.socket_timeout:
-            params["socket_timeout"] = self.socket_timeout
-
-        if self.socket_connect_timeout:
-            params["socket_connect_timeout"] = self.socket_connect_timeout
-
-        if self.max_connections:
-            params["max_connections"] = self.max_connections
-
-        return params
 
     def get_client(self) -> Redis:
         """
@@ -95,26 +56,15 @@ class RedisResource(dg.ConfigurableResource):
 
         Returns:
             Redis client instance.
-
-        Raises:
-            redis.ConnectionError: If connection to Redis fails.
         """
         if self._client is None:
             connection_params = self._get_connection_params()
-
-            if self.redis_url:
-                self._client = redis.from_url(**connection_params)
-            else:
-                self._client = redis.Redis(**connection_params)
-
-            # Test connection
+            self._client = redis.from_url(**connection_params)
             self._client.ping()
-
         return self._client
 
     def setup_for_execution(self, context: dg.InitResourceContext) -> None:
         """Initialize Redis connection when resource is set up."""
-        # Test connection by creating client
         self.get_client()
 
     def teardown_after_execution(self, context: dg.InitResourceContext) -> None:
@@ -124,14 +74,5 @@ class RedisResource(dg.ConfigurableResource):
             self._client = None
 
 
-# Configure resource to use environment variables by default
-redis_resource = RedisResource.configure_at_launch(
-    redis_url=dg.EnvVar("REDIS_URL"),
-    host=dg.EnvVar("REDIS_HOST"),
-    port=dg.EnvVar("REDIS_PORT"),
-    db=dg.EnvVar("REDIS_DB"),
-    password=dg.EnvVar("REDIS_PASSWORD"),
-    socket_timeout=dg.EnvVar("REDIS_SOCKET_TIMEOUT"),
-    socket_connect_timeout=dg.EnvVar("REDIS_SOCKET_CONNECT_TIMEOUT"),
-    max_connections=dg.EnvVar("REDIS_MAX_CONNECTIONS"),
-)
+# Configure resource using shared/settings for configuration
+redis_resource = RedisResource()

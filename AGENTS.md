@@ -130,7 +130,7 @@ venomflow/
 - **Location**: `shared/database/schema.sql`
 - **8 Core Tables**: `organisms`, `peptides`, `bioactivity`, `structures`, `properties`, `peptide_similarities`, `pipeline_runs`, `screening_jobs`
 - **Primary Keys**: All use UUID (generated via `uuid_generate_v4()`)
-- **Sequences**: Validated via regex `^[ACDEFGHIKLMNPQRSTVWY]+$`
+- **Sequences**: Validated via regex `^[ACDEFGHIKLMNPQRSTVWYXBZUO]+$` (accepts standard 20 amino acids plus non-standard codes XBZUO used by UniProt)
 - **Deduplication**: `sequence_hash` (SHA256) for identifying duplicate sequences
 - **Quality Scoring**: `calculate_peptide_quality()` function returns 0.00-1.00 completeness score
 - **Views**: `peptides_enriched` - pre-aggregated view for API queries

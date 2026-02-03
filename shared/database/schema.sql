@@ -50,6 +50,15 @@ CREATE INDEX idx_organisms_taxonomy_gin ON organisms USING gin(taxonomy);
 -- ----------------------------------------------------------------------------
 -- 2. PEPTIDES TABLE
 -- Core peptide data with sequences and metadata
+--
+-- Notes:
+-- - Sequence validation accepts standard amino acids (ACDEFGHIKLMNPQRSTVWY)
+--   plus non-standard codes used by databases like UniProt:
+--   X = unknown/undefined amino acid
+--   B = Asparagine (N) or Aspartic acid (D)
+--   Z = Glutamine (Q) or Glutamic acid (E)
+--   U = Selenocysteine (rare)
+--   O = Pyrrolysine (rare, occurs in archaea)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS peptides (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -70,7 +79,7 @@ CREATE TABLE IF NOT EXISTS peptides (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
     -- Constraints
-    CONSTRAINT peptides_sequence_check CHECK (sequence ~ '^[ACDEFGHIKLMNPQRSTVWY]+$'),
+    CONSTRAINT peptides_sequence_check CHECK (sequence ~ '^[ACDEFGHIKLMNPQRSTVWYXBZUO]+$'),
     CONSTRAINT peptides_sequence_length_check CHECK (sequence_length = length(sequence)),
     CONSTRAINT peptides_quality_score_check CHECK (quality_score >= 0 AND quality_score <= 1)
 );
@@ -173,8 +182,8 @@ CREATE TABLE IF NOT EXISTS properties (
     molar_extinction DECIMAL(10, 2),
     half_life_mammalian INTEGER,
     amino_acid_composition JSONB,
-    logp DECIMAL(4, 3),
-    tpsa DECIMAL(6, 2),
+    logp DECIMAL(10, 3),
+    tpsa DECIMAL(10, 2),
     num_h_donors INTEGER,
     num_h_acceptors INTEGER,
     calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

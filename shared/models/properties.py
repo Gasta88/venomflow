@@ -236,12 +236,20 @@ class PropertiesBase(BaseModel):
     def validate_amino_acid_composition(
         cls, v: Optional[Dict[str, int]]
     ) -> Optional[Dict[str, int]]:
-        """Validate amino acid composition"""
+        """Validate amino acid composition
+
+        Accepts standard amino acids (ACDEFGHIKLMNPQRSTVWY) plus non-standard
+        codes used by databases like UniProt (X=unknown, B=Asn/Asp, Z=Gln/Glu,
+        U=selenocysteine, O=pyrrolysine).
+        """
         if v is not None:
-            valid_amino_acids = set("ACDEFGHIKLMNPQRSTVWY")
+            valid_amino_acids = set("ACDEFGHIKLMNPQRSTVWYXBZUO")
             for aa, count in v.items():
                 if aa not in valid_amino_acids:
-                    raise ValueError(f"Invalid amino acid code: {aa}")
+                    raise ValueError(
+                        f"Invalid amino acid code: {aa}. "
+                        "Must be standard amino acids or non-standard codes XBZUO."
+                    )
                 if count < 0:
                     raise ValueError(
                         f"Amino acid count must be non-negative, got {count} for {aa}"

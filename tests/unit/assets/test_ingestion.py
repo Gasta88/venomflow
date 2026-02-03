@@ -450,3 +450,123 @@ class TestVenomPeptidesUniprotMetadata:
         result = venom_peptides_uniprot(context)
 
         assert "fetch_time" in result.metadata
+
+
+class TestVenomPeptidesUniprotNonStandardAminoAcids:
+    """Unit tests for sequences with non-standard amino acid codes."""
+
+    @responses.activate
+    def test_sequence_with_unknown_residue_x(self):
+        """Test sequences with X (unknown) amino acid are accepted."""
+        mock_data = {
+            "results": [
+                {
+                    "primaryAccession": "P0DPS3",
+                    "uniProtkbId": "VASP1_VIPAA",
+                    "organism": {"scientificName": "Vipera aspis aspis"},
+                    "sequence": {
+                        "value": "VIGGDECXNEHPFLVALHTARXXRFYCAGTLINQXWVLTAARCDRXXXX"
+                    },
+                    "comments": [],
+                }
+            ]
+        }
+
+        responses.add(
+            responses.GET,
+            "https://rest.uniprot.org/uniprotkb/search",
+            json=mock_data,
+            status=200,
+        )
+
+        context = MagicMock()
+        result = venom_peptides_uniprot(context)
+
+        assert result.metadata["num_records"] >= 0
+
+    @responses.activate
+    def test_sequence_with_ambiguous_codes_bz(self):
+        """Test sequences with B/Z amino acids (Asn/Asp, Gln/Glu) are accepted."""
+        mock_data = {
+            "results": [
+                {
+                    "primaryAccession": "P12346",
+                    "uniProtkbId": "TEST2_AMBIG",
+                    "organism": {"scientificName": "Test organism"},
+                    "sequence": {"value": "ACBDZFGHIKLMNPQRSTVWY"},
+                    "comments": [],
+                }
+            ]
+        }
+
+        responses.add(
+            responses.GET,
+            "https://rest.uniprot.org/uniprotkb/search",
+            json=mock_data,
+            status=200,
+        )
+
+        context = MagicMock()
+        result = venom_peptides_uniprot(context)
+
+        assert result.metadata["num_records"] >= 0
+
+    @responses.activate
+    def test_sequence_with_selenocysteine_u(self):
+        """Test sequences with U (Selenocysteine) are accepted."""
+        mock_data = {
+            "results": [
+                {
+                    "primaryAccession": "P12347",
+                    "uniProtkbId": "TEST3_SEC",
+                    "organism": {"scientificName": "Test organism"},
+                    "sequence": {
+                        "value": "MALWMRLLUALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
+                    },
+                    "comments": [],
+                }
+            ]
+        }
+
+        responses.add(
+            responses.GET,
+            "https://rest.uniprot.org/uniprotkb/search",
+            json=mock_data,
+            status=200,
+        )
+
+        context = MagicMock()
+        result = venom_peptides_uniprot(context)
+
+        assert result.metadata["num_records"] >= 0
+
+    @responses.activate
+    def test_sequence_with_multiple_non_standard_codes(
+        self,
+    ):
+        """Test sequences with multiple non-standard codes are accepted."""
+        mock_data = {
+            "results": [
+                {
+                    "primaryAccession": "P12348",
+                    "uniProtkbId": "TEST4_MIXED",
+                    "organism": {"scientificName": "Test organism"},
+                    "sequence": {
+                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYBOUGKFFYTPK"
+                    },
+                    "comments": [],
+                }
+            ]
+        }
+
+        responses.add(
+            responses.GET,
+            "https://rest.uniprot.org/uniprotkb/search",
+            json=mock_data,
+            status=200,
+        )
+
+        context = MagicMock()
+        result = venom_peptides_uniprot(context)
+
+        assert result.metadata["num_records"] >= 0

@@ -1,6 +1,11 @@
 """
 Utility functions for computing physicochemical properties of peptides.
 Uses RDKit and BioPython to calculate molecular and protein-specific properties.
+
+Note: While the database accepts non-standard amino acids (X, B, Z, U, O),
+RDKit property calculations only work with the 20 standard amino acids since RDKit
+lacks SMILES structures for non-standard codes. Sequences with XBZUO will be
+skipped for RDKit calculations but can still be processed by BioPython.
 """
 
 import logging
@@ -79,7 +84,12 @@ def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
 
         if not all(aa in amino_acids for aa in sequence):
             invalid_chars = set(sequence) - set(amino_acids.keys())
-            logger.warning(f"Invalid amino acids in sequence: {invalid_chars}")
+            # Log warning about non-standard amino acids (X, B, Z, U, O) which are not supported by RDKit
+            logger.warning(
+                f"Non-standard amino acids in sequence (RDKit cannot compute properties): {invalid_chars}. "
+                "These amino acids (X=unknown, B=Asn/Asp, Z=Gln/Glu, U=selenocysteine, O=pyrrolysine) "
+                "are valid in the database but not supported for RDKit calculations."
+            )
             return None
 
         smiles = "".join(amino_acids[aa] for aa in sequence)
