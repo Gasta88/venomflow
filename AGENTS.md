@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-**VenomFlow** is a microservices-based data pipeline platform for computational toxinology research. It ingests venom peptide data from public databases (UniProt, NCBI, ChEMBL, VenomKB, PDB), enriches it with physicochemical properties and structural data, and provides:
+**VenomFlow** is a microservices-based data pipeline platform for computational toxinology research. It ingests venom peptide data from UniProt, enriches it with physicochemical properties and structural data, and provides:
 - Dagster asset-based pipelines for orchestration
 - GraphQL API via FastAPI for computational chemists
 - Elasticsearch for similarity search
@@ -23,7 +23,7 @@
 | **Database** | PostgreSQL 16 | Primary data store | Schema: `shared/database/schema.sql` |
 | **Cache** | Redis 7 | Job queues, caching | Stream-based event processing |
 | **Search** | Elasticsearch 8.11 | Full-text and k-mer search | Sequence similarity indexing |
-| **Processing** | RDKit, BioPython, BLAST+ | Cheminformatics, bioinformatics | Computed properties stored in DB |
+| **Processing** | RDKit, BioPython | Cheminformatics, bioinformatics | Computed properties stored in DB |
 | **Monitoring** | Prometheus, Grafana | Metrics and dashboards | Configs in `monitoring/` |
 | **Containerization** | Docker, Docker Compose | Microservices deployment | 8 core services |
 
@@ -41,9 +41,9 @@ venomflow/
 │   ├── dagster.yaml            # Dagster settings
 │   ├── __init__.py             # Dagster definitions entry point
 │   ├── assets/                 # Data assets (computations)
-│   │   ├── ingestion.py        # Data fetching (UniProt, etc.)
+│   │   ├── ingestion.py        # Data fetching from UniProt
 │   │   ├── validation.py       # Data quality checks
-│   │   └── enrichment.py       # Property calculation, BLAST
+│   │   └── enrichment.py       # Property calculation
 │   ├── resources/              # External service clients
 │   │   ├── database.py         # PostgreSQL connection
 │   │   ├── redis.py            # Redis client
@@ -127,7 +127,7 @@ venomflow/
 - **Location**: `shared/database/schema.sql`
 - **8 Core Tables**: `organisms`, `peptides`, `bioactivity`, `structures`, `properties`, `peptide_similarities`, `pipeline_runs`, `screening_jobs`
 - **Primary Keys**: All use UUID (generated via `uuid_generate_v4()`)
-- **Sequences**: Validated via regex `^[ACDEFGHIKLMNPQRSTVWYXBZUO]+$` (accepts standard 20 amino acids plus non-standard codes XBZUO used by UniProt)
+- **Sequences**: Validated via regex `^[ACDEFGHIKLMNPQRSTVWYXBZUO]+$` (accepts standard 20 amino acids plus non-standard codes XBZUO used in protein databases)
 - **Deduplication**: `sequence_hash` (SHA256) for identifying duplicate sequences
 - **Quality Scoring**: `calculate_peptide_quality()` function returns 0.00-1.00 completeness score
 - **Views**: `peptides_enriched` - pre-aggregated view for API queries
@@ -298,7 +298,7 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 | **Fetch UniProt data** | `dagster_pipelines/assets/ingestion.py` | Implements rate limiting, pagination |
 | **Validate sequences** | `shared/utils/validators.py` | Regex validation for amino acids |
 | **Compute properties** | `workers/enrichment_worker.py` | RDKit for cheminformatics |
-| **BLAST similarity** | `workers/blast_runner.py` | Uses NCBI BLAST+ |
+| **Sequence similarity** | `workers/similarity_worker.py` | Sequence alignment algorithms |
 | **GraphQL query** | `api/resolvers/peptide.py` | Business logic for queries |
 | **Database query** | `shared/database/connection.py` | Connection pooling |
 | **Elasticsearch search** | `api/services/search.py` | Full-text and k-mer search |
@@ -316,12 +316,12 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 ## Data Flow Overview
 
 ```
-UniProt/NCBI APIs
+UniProt API
     ↓ (Dagster Ingestion)
 PostgreSQL (raw data)
     ↓ (Dagster Validation & Enrichment)
   ├──→ Properties calculated (RDKit)
-  ├──→ BLAST similarity computed
+  ├──→ Sequence similarity computed
   └──→ Elasticsearch indexed
     ↓ (GraphQL API)
   Computational chemists

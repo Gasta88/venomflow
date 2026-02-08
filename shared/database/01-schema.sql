@@ -24,11 +24,11 @@ CREATE TABLE IF NOT EXISTS organisms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     common_name VARCHAR(255),
-    taxonomy_id INTEGER UNIQUE,  -- NCBI Taxonomy ID
+    taxonomy_id INTEGER UNIQUE,  -- Taxonomy ID for organism identification
     taxonomy JSONB,  -- Full taxonomic lineage
     venom_type VARCHAR(100),  -- e.g., 'snake', 'spider', 'scorpion', 'cone_snail'
     description TEXT,
-    source VARCHAR(100),  -- Data source: 'uniprot', 'ncbi', 'manual'
+    source VARCHAR(100),  -- Data source: 'uniprot', 'manual'
     external_ids JSONB,  -- External database identifiers
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS structures (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     peptide_id UUID NOT NULL REFERENCES peptides(id) ON DELETE CASCADE,
     structure_type VARCHAR(50) NOT NULL,  -- 'experimental', 'predicted', 'homology_model'
-    pdb_id VARCHAR(10),  -- PDB identifier if available
+    structure_id VARCHAR(10),  -- Structure identifier if available
     structure_data TEXT,  -- PDB format or other structure representation
     secondary_structure VARCHAR(255),  -- e.g., 'alpha-helix', 'beta-sheet'
     method VARCHAR(100),  -- Determination method: 'X-ray', 'NMR', 'AlphaFold', etc.
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS structures (
 
 -- Indexes for structures
 CREATE INDEX idx_structures_peptide_id ON structures(peptide_id);
-CREATE INDEX idx_structures_pdb_id ON structures(pdb_id);
+CREATE INDEX idx_structures_structure_id ON structures(structure_id);
 CREATE INDEX idx_structures_type ON structures(structure_type);
 CREATE INDEX idx_structures_method ON structures(method);
 
@@ -212,12 +212,11 @@ CREATE TABLE IF NOT EXISTS peptide_similarities (
     peptide_id_1 UUID NOT NULL REFERENCES peptides(id) ON DELETE CASCADE,
     peptide_id_2 UUID NOT NULL REFERENCES peptides(id) ON DELETE CASCADE,
     similarity_score DECIMAL(5, 4) NOT NULL,  -- 0.0000 to 1.0000
-    alignment_method VARCHAR(50) NOT NULL,  -- 'blast', 'smith-waterman', 'needleman-wunsch'
+    alignment_method VARCHAR(50) NOT NULL,  -- 'smith-waterman', 'needleman-wunsch', 'local-alignment'
     alignment_length INTEGER,
     identities INTEGER,
     gaps INTEGER,
-    e_value DECIMAL(10, 4),  -- BLAST e-value
-    bit_score DECIMAL(8, 2),  -- BLAST bit score
+    score DECIMAL(10, 4),  -- Alignment score
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
     -- Constraints
@@ -234,7 +233,6 @@ CREATE INDEX idx_peptide_similarities_peptide_1 ON peptide_similarities(peptide_
 CREATE INDEX idx_peptide_similarities_peptide_2 ON peptide_similarities(peptide_id_2);
 CREATE INDEX idx_peptide_similarities_score ON peptide_similarities(similarity_score DESC);
 CREATE INDEX idx_peptide_similarities_method ON peptide_similarities(alignment_method);
-CREATE INDEX idx_peptide_similarities_e_value ON peptide_similarities(e_value);
 
 -- ----------------------------------------------------------------------------
 -- 7. PIPELINE_RUNS TABLE
@@ -299,7 +297,7 @@ CREATE TABLE IF NOT EXISTS screening_jobs (
     ),
     CONSTRAINT screening_jobs_type_check CHECK (
         job_type IN ('similarity_search', 'bioactivity_prediction', 'docking', 
-                     'property_filter', 'blast_search')
+                     'property_filter', 'sequence_search')
     )
 );
 

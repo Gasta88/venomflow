@@ -65,9 +65,9 @@ class BioactivityBase(BaseModel):
                 "confidence_level": "high",
                 "reference": "Karlsson E, et al. (1972)",
                 "pubmed_id": 4567890,
-                "source": "chembl",
+                "source": "uniprot",
                 "metadata": {
-                    "assay_id": "CHEMBL123456",
+                    "assay_id": "ASSAY123456",
                     "experimental_conditions": "pH 7.4, 25°C"
                 }
             }
@@ -150,7 +150,7 @@ class BioactivityBase(BaseModel):
         ...,
         max_length=100,
         description="Data source from which bioactivity was obtained",
-        json_schema_extra={"example": "chembl"}
+        json_schema_extra={"example": "uniprot"}
     )
     
     metadata: Optional[Dict[str, Any]] = Field(
@@ -158,7 +158,7 @@ class BioactivityBase(BaseModel):
         description="Additional metadata about the bioactivity",
         json_schema_extra={
             "example": {
-                "assay_id": "CHEMBL123456",
+                "assay_id": "ASSAY123456",
                 "experimental_conditions": "pH 7.4, 25°C"
             }
         }

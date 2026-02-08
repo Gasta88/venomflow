@@ -32,7 +32,6 @@ class PeptideBase(BaseModel):
                 "external_ids": {
                     "uniprot": "P01420",
                     "pdb": "1CTX",
-                    "ncbi_protein": "CAA26146.1",
                 },
             }
         },
@@ -116,7 +115,6 @@ class PeptideBase(BaseModel):
             "example": {
                 "uniprot": "P01420",
                 "pdb": "1CTX",
-                "ncbi_protein": "CAA26146.1",
             }
         },
     )
