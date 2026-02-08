@@ -1,12 +1,6 @@
 # VenomFlow
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Docker](https://img.shields.io/badge/docker-24.0+-blue.svg)](https://www.docker.com/)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Dagster](https://img.shields.io/badge/dagster-1.5.12-purple.svg)](https://dagster.io/)
-
-**VenomFlow** is a modern, microservices-based data pipeline platform for comprehensive venom peptide research. It provides automated data ingestion, validation, enrichment, and analysis of venom peptides from multiple biological databases, enabling researchers to discover novel bioactive compounds and therapeutic candidates.
+**VenomFlow** is a microservices-based data pipeline platform for comprehensive venom peptide research. It provides automated data ingestion, validation, enrichment, and analysis of venom peptides from multiple biological databases, enabling researchers to discover novel bioactive compounds and therapeutic candidates.
 
 ---
 
@@ -27,15 +21,11 @@
 - [Testing](#-testing)
 - [Deployment](#-deployment)
 
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Support](#-support)
-
 ---
 
 ## Overview
 
-VenomFlow is designed to streamline the process of collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages modern data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
+VenomFlow is designed for collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
 
 ### Why VenomFlow?
 
@@ -320,7 +310,7 @@ venomflow/
 
 ---
 
-## 🔧 Development Workflow
+## Development Workflow
 
 ### Setting Up Development Environment
 
@@ -389,17 +379,9 @@ git commit -m "feat: add new feature"
 git push origin feature/your-feature-name
 ```
 
-### Branch Naming Convention
-
-- `feature/*` - New features
-- `fix/*` - Bug fixes
-- `docs/*` - Documentation updates
-- `refactor/*` - Code refactoring
-- `test/*` - Test additions/updates
-
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 VenomFlow uses environment variables for configuration. Copy `.env.example` to `.env` and customize:
 
@@ -442,7 +424,7 @@ API_SECRET_KEY=your_32_character_secret_key_here
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 ### GraphQL Playground
 
@@ -498,7 +480,7 @@ mutation CreatePeptide {
 
 ---
 
-## 🔄 Data Pipeline
+## Data Pipeline
 
 ### Pipeline Architecture
 
@@ -531,7 +513,7 @@ dagster job execute -m dagster_pipelines -j venomflow_pipeline
 
 ---
 
-## 📊 Monitoring & Observability
+## Monitoring & Observability
 
 ### Dashboards
 
@@ -572,7 +554,7 @@ make logs | grep ERROR
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Running Tests
 
@@ -591,29 +573,6 @@ make test-cov
 
 # Specific test file
 make test tests/unit/test_peptide.py -v
-```
-
-### Test Categories
-
-- **Unit Tests**: Test individual functions and classes
-- **Integration Tests**: Test service interactions
-- **End-to-End Tests**: Test complete workflows
-- **Performance Tests**: Benchmark critical paths
-
-### Writing Tests
-
-```python
-# tests/unit/test_peptide.py
-import pytest
-from shared.models.peptide import Peptide
-
-def test_peptide_validation():
-    peptide = Peptide(
-        sequence="ACDEFGH",
-        name="Test"
-    )
-    assert peptide.sequence == "ACDEFGH"
-    assert len(peptide.sequence) == 7
 ```
 
 ---
@@ -635,10 +594,10 @@ export APP_DEBUG=false
 # - Production API keys
 
 # 3. Build production images
-docker compose -f docker-compose.prod.yml build
+make build
 
 # 4. Start services
-docker compose -f docker-compose.prod.yml up -d
+make up
 
 # 5. Run migrations
 docker compose exec dagster-webserver python scripts/migrate.py
@@ -662,14 +621,3 @@ curl http://your-domain/health
 - Load balancer
 - Backup storage
 
-### Scaling
-
-```bash
-# Scale API service
-make up --scale api=3
-
-# Scale workers
-make up --scale enrichment-worker=5
-```
-
----

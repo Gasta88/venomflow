@@ -14,9 +14,9 @@ from typing import List, Dict, Any
 import json
 
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from resources.database import DatabaseResource
-from sqlalchemy.orm import Session
 
 
 BATCH_SIZE = 500

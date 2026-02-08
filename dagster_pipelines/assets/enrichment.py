@@ -4,8 +4,6 @@ Computes physicochemical properties for peptides using RDKit and BioPython.
 """
 
 import logging
-import os
-import sys
 from typing import Any, Dict, List
 
 from sqlalchemy import text
@@ -13,13 +11,10 @@ from sqlalchemy.orm import Session
 
 from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from assets.property_calculators import (
+    compute_biopython_properties,
+    compute_rdkit_properties,
 )
-# flake8: noqa: E402
-
-
-from .property_calculators import compute_biopython_properties, compute_rdkit_properties
 from resources.database import DatabaseResource
 
 logger = logging.getLogger(__name__)
@@ -31,19 +26,20 @@ BATCH_SIZE = 50
 @asset(
     group_name="enrichment",
     description="""
-Computes physicochemical properties for peptides using RDKit and BioPython.
+    Computes physicochemical properties for peptides using RDKit and BioPython.
 
-Properties computed:
-- RDKit: molecular_weight, logp, tpsa, num_h_donors, num_h_acceptors
-- BioPython: isoelectric_point (pI), hydrophobicity (GRAVY)
+    Properties computed:
+    - RDKit: molecular_weight, logp, tpsa, num_h_donors, num_h_acceptors
+    - BioPython: isoelectric_point (pI), hydrophobicity (GRAVY)
 
-Results are stored in the PostgreSQL 'properties' table.
-Properties are only computed for peptides that don't already have properties.
-""",
+    Results are stored in the PostgreSQL 'properties' table.
+    Properties are only computed for peptides that don't already have properties.
+    """,
 )
 def compute_peptide_properties(
     context: AssetExecutionContext,
     database: DatabaseResource,
+    venom_peptides_uniprot,
 ) -> MaterializeResult:
     """
     Dagster asset for computing peptide physicochemical properties.

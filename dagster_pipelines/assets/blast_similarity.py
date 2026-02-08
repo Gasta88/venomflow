@@ -17,14 +17,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
-
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
 
 from shared.config.settings import settings
 from resources.database import DatabaseResource
@@ -249,6 +244,7 @@ def order_peptide_ids(peptide_id_1: str, peptide_id_2: str) -> Tuple[str, str]:
 
 @asset(
     group_name="enrichment",
+    deps=["venom_peptides_uniprot"],
     description="""
     Computes sequence similarities between all peptides using BLAST+.
 

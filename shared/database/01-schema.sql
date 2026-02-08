@@ -398,6 +398,10 @@ SELECT
     pr.instability_index,
     pr.aliphatic_index,
     pr.aromaticity,
+    pr.logp,
+    pr.tpsa,
+    pr.num_h_donors,
+    pr.num_h_acceptors,
     -- Structure availability
     COUNT(DISTINCT s.id) as structure_count,
     bool_or(s.structure_type = 'experimental') as has_experimental_structure
@@ -412,7 +416,8 @@ GROUP BY
     p.source, p.external_ids, p.created_at, p.updated_at,
     o.id, o.name, o.common_name, o.taxonomy_id, o.venom_type,
     pr.isoelectric_point, pr.hydrophobicity, pr.charge_at_ph7,
-    pr.instability_index, pr.aliphatic_index, pr.aromaticity;
+    pr.instability_index, pr.aliphatic_index, pr.aromaticity, pr.logp, pr.tpsa, 
+    pr.num_h_donors, pr.num_h_acceptors;
 
 -- ============================================================================
 -- FUNCTIONS
