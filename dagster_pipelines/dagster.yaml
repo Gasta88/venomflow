@@ -6,32 +6,24 @@
 # Storage backend for run history, event logs, and schedules
 storage:
   postgres:
-    postgres_url:
-      env: DAGSTER_POSTGRES_URL
+    postgres_url: "postgresql://dagster_user:dagster_password@postgres:5432/dagster"
 
 # Run coordinator - determines how runs are executed
 run_coordinator:
-  module: dagster.core.run_coordinator
+  module: dagster._core.run_coordinator
   class: QueuedRunCoordinator
 
 # Run launcher - determines where runs execute
 run_launcher:
-  module: dagster.core.launcher
+  module: dagster._core.launcher
   class: DefaultRunLauncher
 
 # Compute logs storage
 compute_logs:
-  module: dagster.core.storage.compute_log_manager
+  module: dagster._core.storage.local_compute_log_manager
   class: LocalComputeLogManager
   config:
-    base_dir: /opt/dagster/dagster_home/compute_logs
-
-# Local artifact storage
-local_artifact_storage:
-  module: dagster.core.storage.root
-  class: LocalArtifactStorage
-  config:
-    base_dir: /opt/dagster/dagster_home/storage
+    base_dir: compute_logs
 
 # Telemetry
 telemetry:

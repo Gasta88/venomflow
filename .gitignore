@@ -68,3 +68,6 @@ monitoring/prometheus/data/
 
 # Specs-driven assets
 specs/
+
+# Data BLAST
+data/

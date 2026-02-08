@@ -13,7 +13,7 @@ Available Resources:
 
 Usage Example:
     from dagster import asset, Definitions
-    from dagster.resources import (
+    from resources import (
         database_resource,
         redis_resource,
         elasticsearch_resource,

@@ -1,12 +1,6 @@
 # VenomFlow
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Docker](https://img.shields.io/badge/docker-24.0+-blue.svg)](https://www.docker.com/)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Dagster](https://img.shields.io/badge/dagster-1.5.12-purple.svg)](https://dagster.io/)
-
-**VenomFlow** is a modern, microservices-based data pipeline platform for comprehensive venom peptide research. It provides automated data ingestion, validation, enrichment, and analysis of venom peptides from multiple biological databases, enabling researchers to discover novel bioactive compounds and therapeutic candidates.
+**VenomFlow** is a microservices-based data pipeline platform for comprehensive venom peptide research. It provides automated data ingestion, validation, enrichment, and analysis of venom peptides from multiple biological databases, enabling researchers to discover novel bioactive compounds and therapeutic candidates.
 
 ---
 
@@ -26,16 +20,12 @@
 - [Monitoring & Observability](#-monitoring--observability)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
-- [Documentation](#-documentation)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Support](#-support)
 
 ---
 
 ## Overview
 
-VenomFlow is designed to streamline the process of collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages modern data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
+VenomFlow is designed for collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
 
 ### Why VenomFlow?
 
@@ -265,7 +255,7 @@ venomflow/
 │   │   └── search.py                   # Search services
 │   └── tests/                          # API tests
 │
-├── 📂 dagster/                         # Dagster orchestration
+├── 📂 dagster_pipelines/               # Dagster orchestration
 │   ├── Dockerfile                      # Dagster container definition
 │   ├── requirements.txt                # Dagster dependencies
 │   ├── dagster.yaml                    # Dagster configuration
@@ -316,28 +306,22 @@ venomflow/
 │   ├── unit/                           # Unit tests
 │   ├── integration/                    # Integration tests
 │   └── fixtures/                       # Test fixtures
-│
-└── 📂 docs/                            # Documentation
-    ├── architecture.md                 # Architecture deep dive
-    ├── api-reference.md                # API documentation
-    ├── data-dictionary.md              # Data model reference
-    └── deployment-guide.md             # Deployment instructions
 ```
 
 ---
 
-## 🔧 Development Workflow
+## Development Workflow
 
 ### Setting Up Development Environment
 
 1. **Clone and install dependencies**
    ```bash
-   git clone https://github.com/Gasta88/venomflow.git
-   cd venomflow
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r dagster/requirements.txt
-   pip install -r api/requirements.txt
+git clone https://github.com/Gasta88/venomflow.git
+cd venomflow
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r dagster_pipelines/requirements.txt
+pip install -r api/requirements.txt
    ```
 
 2. **Install development tools**
@@ -351,15 +335,15 @@ venomflow/
    ```
 
 4. **Run database migrations**
-   ```bash
-   ./scripts/init_database.sh
-   ```
+    ```bash
+    make init-db
+    ```
 
 5. **Start development servers**
-   ```bash
-   # Terminal 1: Dagster
-   cd dagster
-   dagster dev
+```bash
+    # Terminal 1: Dagster
+    cd dagster_pipelines
+    dagster dev
 
    # Terminal 2: API
    cd api
@@ -378,7 +362,7 @@ flake8 .
 mypy .
 
 # Test
-pytest tests/ -v --cov=.
+make test
 ```
 
 ### Git Workflow
@@ -395,17 +379,9 @@ git commit -m "feat: add new feature"
 git push origin feature/your-feature-name
 ```
 
-### Branch Naming Convention
-
-- `feature/*` - New features
-- `fix/*` - Bug fixes
-- `docs/*` - Documentation updates
-- `refactor/*` - Code refactoring
-- `test/*` - Test additions/updates
-
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 VenomFlow uses environment variables for configuration. Copy `.env.example` to `.env` and customize:
 
@@ -444,11 +420,11 @@ API_PORT=8000
 API_SECRET_KEY=your_32_character_secret_key_here
 ```
 
-See [Configuration Documentation](docs/deployment-guide.md#configuration) for all options.
+---
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 ### GraphQL Playground
 
@@ -502,11 +478,9 @@ mutation CreatePeptide {
 }
 ```
 
-See [API Reference](docs/api-reference.md) for complete documentation.
-
 ---
 
-## 🔄 Data Pipeline
+## Data Pipeline
 
 ### Pipeline Architecture
 
@@ -524,7 +498,7 @@ VenomFlow uses Dagster for orchestrating data pipelines with the following stage
 # Navigate to http://localhost:3000 and click "Launchpad"
 
 # Via CLI
-dagster job execute -m dagster -j venomflow_pipeline
+dagster job execute -m dagster_pipelines -j venomflow_pipeline
 
 # Schedule-based execution
 # Pipelines run automatically based on configured schedules
@@ -539,7 +513,7 @@ dagster job execute -m dagster -j venomflow_pipeline
 
 ---
 
-## 📊 Monitoring & Observability
+## Monitoring & Observability
 
 ### Dashboards
 
@@ -569,59 +543,36 @@ Logs are collected in JSON format and available via:
 
 ```bash
 # All services
-docker compose logs -f
+make logs
 
 # Specific service
-docker compose logs -f dagster-webserver
+make logs-dagster-webserver
 
 # With grep
-docker compose logs -f | grep ERROR
+make logs | grep ERROR
 ```
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Running Tests
 
 ```bash
 # All tests
-pytest
+make test
 
 # Unit tests only
-pytest tests/unit/
+make test tests/unit/
 
 # Integration tests
-pytest tests/integration/
+make test tests/integration/
 
 # With coverage
-pytest --cov=. --cov-report=html
+make test-cov
 
 # Specific test file
-pytest tests/unit/test_peptide.py -v
-```
-
-### Test Categories
-
-- **Unit Tests**: Test individual functions and classes
-- **Integration Tests**: Test service interactions
-- **End-to-End Tests**: Test complete workflows
-- **Performance Tests**: Benchmark critical paths
-
-### Writing Tests
-
-```python
-# tests/unit/test_peptide.py
-import pytest
-from shared.models.peptide import Peptide
-
-def test_peptide_validation():
-    peptide = Peptide(
-        sequence="ACDEFGH",
-        name="Test"
-    )
-    assert peptide.sequence == "ACDEFGH"
-    assert len(peptide.sequence) == 7
+make test tests/unit/test_peptide.py -v
 ```
 
 ---
@@ -629,8 +580,6 @@ def test_peptide_validation():
 ## Deployment
 
 ### Production Deployment
-
-See [Deployment Guide](docs/deployment-guide.md) for detailed instructions.
 
 **Quick production setup:**
 
@@ -645,16 +594,16 @@ export APP_DEBUG=false
 # - Production API keys
 
 # 3. Build production images
-docker compose -f docker-compose.prod.yml build
+make build
 
 # 4. Start services
-docker compose -f docker-compose.prod.yml up -d
+make up
 
 # 5. Run migrations
 docker compose exec dagster-webserver python scripts/migrate.py
 
 # 6. Verify deployment
-docker compose ps
+make ps
 curl http://your-domain/health
 ```
 
@@ -672,37 +621,3 @@ curl http://your-domain/health
 - Load balancer
 - Backup storage
 
-### Scaling
-
-```bash
-# Scale API service
-docker compose up -d --scale api=3
-
-# Scale workers
-docker compose up -d --scale enrichment-worker=5
-```
-
----
-
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory:
-
-- **[Architecture Overview](docs/architecture.md)**: System design and component interactions
-- **[API Reference](docs/api-reference.md)**: Complete API documentation with examples
-- **[Data Dictionary](docs/data-dictionary.md)**: Database schema and data models
-- **[Deployment Guide](docs/deployment-guide.md)**: Production deployment instructions
-
-### Building Documentation
-
-```bash
-# Install dependencies
-pip install sphinx sphinx-rtd-theme
-
-# Build docs
-cd docs
-make html
-
-# View docs
-open _build/html/index.html
-```
