@@ -130,7 +130,6 @@ Get VenomFlow running locally in under 5 minutes!
    - **Dagster UI**: http://localhost:3000
    - **Grafana**: http://localhost:3001 (admin/changeme_grafana_password)
    - **Prometheus**: http://localhost:9090
-   - **MinIO Console**: http://localhost:9001 (minioadmin/changeme_minio_secret)
    - **Elasticsearch**: http://localhost:9200
    - **PostgreSQL**: localhost:5432
 
@@ -202,12 +201,12 @@ VenomFlow follows a microservices architecture with a separation of concerns.
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
 │                      Storage Layer                              │
-│  ┌──────────────┬──────────────┬──────────────┬─────────────┐   │
-│  │ PostgreSQL   │ Elasticsearch│    Redis     │   MinIO     │   │
-│  │ - Structured │ - Full-text  │ - Cache      │ - Objects   │   │
-│  │ - Relations  │ - Search     │ - Sessions   │ - Files     │   │
-│  │ - Metadata   │ - Analytics  │ - Queue      │ - Backups   │   │
-│  └──────────────┴──────────────┴──────────────┴─────────────┘   │
+│  ┌──────────────┬──────────────┬──────────────┐                 │
+│  │ PostgreSQL   │ Elasticsearch│    Redis     │                 │
+│  │ - Structured │ - Full-text  │ - Cache      │                 │
+│  │ - Relations  │ - Search     │ - Sessions   │                 │
+│  │ - Metadata   │ - Analytics  │ - Queue      │                 │
+│  └──────────────┴──────────────┴──────────────┘                 │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
@@ -410,10 +409,9 @@ ELASTIC_PORT=9200
 ELASTIC_PASSWORD=your_elastic_password_here
 
 # Storage
-MINIO_HOST=minio
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=your_access_key
-MINIO_SECRET_KEY=your_secret_key
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password_here
 
 # API
 API_PORT=8000

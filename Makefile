@@ -20,7 +20,6 @@ help:
 	@echo "  make logs-postgres           - View PostgreSQL logs"
 	@echo "  make logs-redis              - View Redis logs"
 	@echo "  make logs-elasticsearch      - View Elasticsearch logs"
-	@echo "  make logs-minio              - View MinIO logs"
 	@echo "  make logs-prometheus         - View Prometheus logs"
 	@echo "  make logs-grafana            - View Grafana logs"
 	@echo "  make logs-dagster-webserver  - View Dagster webserver logs"
@@ -45,7 +44,6 @@ help:
 	@echo "  Dagster:         http://localhost:3000"
 	@echo "  Grafana:         http://localhost:3001"
 	@echo "  Prometheus:      http://localhost:9090"
-	@echo "  MinIO Console:   http://localhost:9001"
 	@echo "  Elasticsearch:   http://localhost:9200"
 
 # Build Docker images
@@ -64,7 +62,6 @@ up:
 	@echo "  Dagster:         http://localhost:3000"
 	@echo "  Grafana:         http://localhost:3001"
 	@echo "  Prometheus:      http://localhost:9090"
-	@echo "  MinIO Console:   http://localhost:9001"
 	@echo "  Elasticsearch:   http://localhost:9200"
 
 # Stop all services
@@ -88,9 +85,6 @@ logs-redis:
 
 logs-elasticsearch:
 	docker-compose logs -f elasticsearch
-
-logs-minio:
-	docker-compose logs -f minio
 
 logs-prometheus:
 	docker-compose logs -f prometheus
@@ -174,8 +168,6 @@ health:
 	@docker-compose exec -T redis redis-cli --raw incr ping >/dev/null 2>&1 && echo "✓ Healthy" || echo "✗ Unhealthy"
 	@echo -n "Elasticsearch: "
 	@curl -s -u elastic:changeme_elastic_password http://localhost:9200/_cluster/health 2>/dev/null | grep -q "green\|yellow" && echo "✓ Healthy" || echo "✗ Unhealthy"
-	@echo -n "MinIO: "
-	@curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1 && echo "✓ Healthy" || echo "✗ Unhealthy"
 	@echo -n "Prometheus: "
 	@curl -sf http://localhost:9090/-/healthy >/dev/null 2>&1 && echo "✓ Healthy" || echo "✗ Unhealthy"
 	@echo -n "Grafana: "

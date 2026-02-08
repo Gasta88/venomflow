@@ -9,7 +9,6 @@ import time
 import psycopg2
 import redis
 import requests
-from minio import Minio
 from elasticsearch import Elasticsearch
 from typing import Tuple
 
@@ -80,22 +79,6 @@ def test_elasticsearch() -> Tuple[bool, str]:
         return False, f"Elasticsearch connection failed: {str(e)}"
 
 
-def test_minio() -> Tuple[bool, str]:
-    """Test MinIO connectivity."""
-    try:
-        client = Minio(
-            f"localhost:{settings.minio_port}",
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure
-        )
-        # List buckets to verify connectivity
-        buckets = client.list_buckets()
-        return True, f"MinIO connected ({len(buckets)} buckets)"
-    except Exception as e:
-        return False, f"MinIO connection failed: {str(e)}"
-
-
 def test_prometheus() -> Tuple[bool, str]:
     """Test Prometheus connectivity."""
     try:
@@ -133,7 +116,6 @@ def main():
         ("PostgreSQL", test_postgres),
         ("Redis", test_redis),
         ("Elasticsearch", test_elasticsearch),
-        ("MinIO", test_minio),
         ("Prometheus", test_prometheus),
         ("Grafana", test_grafana),
     ]
