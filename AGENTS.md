@@ -10,7 +10,6 @@
 - Elasticsearch for similarity search
 - PostgreSQL for structured data
 - Redis for caching and job queues
-- MinIO for object storage
 - Prometheus + Grafana for monitoring
 
 **Primary Goal:** Enable virtual screening and drug discovery research on venom peptides.
@@ -24,7 +23,6 @@
 | **Database** | PostgreSQL 16 | Primary data store | Schema: `shared/database/schema.sql` |
 | **Cache** | Redis 7 | Job queues, caching | Stream-based event processing |
 | **Search** | Elasticsearch 8.11 | Full-text and k-mer search | Sequence similarity indexing |
-| **Storage** | MinIO | S3-compatible object store | BLAST databases, raw data files |
 | **Processing** | RDKit, BioPython, BLAST+ | Cheminformatics, bioinformatics | Computed properties stored in DB |
 | **Monitoring** | Prometheus, Grafana | Metrics and dashboards | Configs in `monitoring/` |
 | **Containerization** | Docker, Docker Compose | Microservices deployment | 8 core services |
@@ -49,8 +47,7 @@ venomflow/
 │   ├── resources/              # External service clients
 │   │   ├── database.py         # PostgreSQL connection
 │   │   ├── redis.py            # Redis client
-│   │   ├── elasticsearch.py    # Elasticsearch client
-│   │   └── minio.py            # MinIO client
+│   │   └── elasticsearch.py    # Elasticsearch client
 │   ├── jobs/                   # Scheduled jobs
 │   ├── sensors/                # Event-based triggers
 │   └── tests/                  # Pipeline tests
@@ -244,7 +241,7 @@ mypy .
 
 | File | Purpose | Key Points |
 |------|---------|-------------|
-| `docker-compose.yml` | Service definitions | 8 services: postgres, redis, elasticsearch, minio, prometheus, grafana, dagster-webserver, dagster-daemon |
+| `docker-compose.yml` | Service definitions | 7 services: postgres, redis, elasticsearch, prometheus, grafana, dagster-webserver, dagster-daemon |
 | `shared/database/schema.sql` | Database schema | 8 tables, UUID PKs, triggers, views, quality function |
 | `shared/config/settings.py` | Config management | Pydantic BaseSettings, all env vars defined |
 | `dagster_pipelines/__init__.py` | Dagster definitions | Main entry point for assets |
@@ -293,7 +290,6 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 | Elasticsearch | 9200 | http://localhost:9200 | elastic/.env password |
 | PostgreSQL | 5432 | localhost:5432 | venomflow_user/.env password |
 | Redis | 6379 | localhost:6379 | .env password |
-| MinIO | 9000/9001 | http://localhost:9001 | minioadmin/.env password |
 
 ## Common Tasks & Where to Look
 
@@ -330,7 +326,7 @@ PostgreSQL (raw data)
     ↓ (GraphQL API)
   Computational chemists
     ↓ ( Screening jobs)
-  Results storage (MinIO, PostgreSQL)
+  Results storage (PostgreSQL)
 ```
 
 ## Architecture Principles
@@ -346,7 +342,7 @@ PostgreSQL (raw data)
 
 All required variables defined in `.env.example`. Must customize these:
 
-- `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `MINIO_SECRET_KEY`
+- `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `ELASTIC_PASSWORD`
 - `GRAFANA_ADMIN_PASSWORD`
 - `API_SECRET_KEY` (32+ characters)
 - `DAGSTER_POSTGRES_PASSWORD`
@@ -387,7 +383,7 @@ make restore-db FILE=file.sql  # Restore
 ### Validation Script
 ```bash
 python3 scripts/verify_infrastructure.py
-# Tests: postgres, redis, elasticsearch, minio, prometheus, grafana
+# Tests: postgres, redis, elasticsearch, prometheus, grafana
 # Exits 0 if all pass, 1 if any fail
 ```
 
@@ -416,7 +412,6 @@ python3 scripts/verify_infrastructure.py
 - UUIDs required for all primary keys
 - All services have health checks
 - Elasticsearch requires 512MB+ JVM memory
-- MinIO buckets created automatically on startup
 - Use `make logs-<service>` not `docker logs` for consistent formatting
 - Virtual environment accessible via `.venv` on root folder of the project
 

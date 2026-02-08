@@ -1,15 +1,14 @@
 # =============================================================================
 # VENOMFLOW DOCKER COMPOSE CONFIGURATION
 # =============================================================================
-# Defines 8 core services for the VenomFlow microservices architecture:
+# Defines 7 core services for the VenomFlow microservices architecture:
 # 1. PostgreSQL - Primary database
 # 2. Redis - Cache and message streaming
 # 3. Elasticsearch - Full-text search engine
-# 4. MinIO - S3-compatible object storage
-# 5. Prometheus - Metrics collection
-# 6. Grafana - Metrics visualization
-# 7. Dagster Web - Orchestration UI
-# 8. Dagster Daemon - Pipeline execution engine
+# 4. Prometheus - Metrics collection
+# 5. Grafana - Metrics visualization
+# 6. Dagster Web - Orchestration UI
+# 7. Dagster Daemon - Pipeline execution engine
 
 services:
   # ===========================================================================
@@ -118,56 +117,6 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # OBJECT STORAGE - MinIO
-  # ===========================================================================
-  minio:
-    image: minio/minio:latest
-    container_name: venomflow-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
-    ports:
-      - "${MINIO_PORT}:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - venomflow-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # MinIO Client - Create buckets on startup
-  # ===========================================================================
-  minio-init:
-    image: minio/mc:latest
-    container_name: venomflow-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
-      /usr/bin/mc mb myminio/${MINIO_BUCKET_NAME} --ignore-existing;
-      /usr/bin/mc anonymous set download myminio/${MINIO_BUCKET_NAME};
-      exit 0;
-      "
-    networks:
-      - venomflow-network
-
-  # ===========================================================================
   # MONITORING - Prometheus
   # ===========================================================================
   prometheus:
@@ -264,10 +213,6 @@ services:
       ELASTIC_HOST: ${ELASTIC_HOST}
       ELASTIC_PORT: ${ELASTIC_PORT}
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-      MINIO_HOST: ${MINIO_HOST}
-      MINIO_PORT: ${MINIO_PORT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       PYTHONPATH: /opt/dagster
     ports:
       - "3000:3000"
@@ -328,10 +273,6 @@ services:
       ELASTIC_HOST: ${ELASTIC_HOST}
       ELASTIC_PORT: ${ELASTIC_PORT}
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-      MINIO_HOST: ${MINIO_HOST}
-      MINIO_PORT: ${MINIO_PORT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       PYTHONPATH: /opt/dagster
     volumes:
       - ./dagster_pipelines:/opt/dagster/app
@@ -381,11 +322,6 @@ volumes:
   # Search Engine
   elasticsearch_data:
     name: venomflow-elasticsearch-data
-    driver: local
-
-  # Object Storage
-  minio_data:
-    name: venomflow-minio-data
     driver: local
 
   # Monitoring

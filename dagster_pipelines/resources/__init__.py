@@ -9,15 +9,13 @@ Available Resources:
 - DatabaseResource: PostgreSQL connection using SQLAlchemy
 - RedisResource: Redis client for caching and session storage
 - ElasticsearchResource: Elasticsearch client for search and analytics
-- MinIOResource: MinIO/S3 client for object storage
 
 Usage Example:
     from dagster import asset, Definitions
     from resources import (
         database_resource,
         redis_resource,
-        elasticsearch_resource,
-        minio_resource
+        elasticsearch_resource
     )
 
     @asset
@@ -31,7 +29,6 @@ Usage Example:
             "database": database_resource,
             "redis": redis_resource,
             "elasticsearch": elasticsearch_resource,
-            "minio": minio_resource,
         }
     )
 """
@@ -39,7 +36,6 @@ Usage Example:
 from .database import DatabaseResource, database_resource
 from .redis import RedisResource, redis_resource
 from .elasticsearch import ElasticsearchResource, elasticsearch_resource
-from .minio import MinIOResource, minio_resource
 
 __all__ = [
     "DatabaseResource",
@@ -48,6 +44,4 @@ __all__ = [
     "redis_resource",
     "ElasticsearchResource",
     "elasticsearch_resource",
-    "MinIOResource",
-    "minio_resource",
 ]

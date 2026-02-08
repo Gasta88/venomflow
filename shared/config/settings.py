@@ -109,21 +109,6 @@ class Settings(BaseSettings):
         ]
     
     # =============================================================================
-    # MINIO (S3-Compatible Object Storage)
-    # =============================================================================
-    minio_host: str = Field(default="localhost", description="MinIO host")
-    minio_port: int = Field(default=9000, description="MinIO port")
-    minio_access_key: str = Field(default="minioadmin", description="MinIO access key")
-    minio_secret_key: str = Field(default="minioadmin", description="MinIO secret key")
-    minio_bucket_name: str = Field(default="venomflow-data", description="MinIO bucket name")
-    minio_secure: bool = Field(default=False, description="Use HTTPS for MinIO")
-    
-    @property
-    def minio_endpoint(self) -> str:
-        """Construct MinIO endpoint."""
-        return f"{self.minio_host}:{self.minio_port}"
-    
-    # =============================================================================
     # DAGSTER ORCHESTRATION
     # =============================================================================
     dagster_home: str = Field(default="/opt/dagster/dagster_home", description="Dagster home directory")

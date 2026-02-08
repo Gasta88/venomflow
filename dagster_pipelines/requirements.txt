@@ -18,10 +18,6 @@ redis==5.0.1
 # Elasticsearch client
 elasticsearch==8.11.0
 
-# MinIO/S3 client
-boto3==1.29.7
-minio==7.2.0
-
 # Data processing
 pandas==2.1.4
 numpy==1.26.2
