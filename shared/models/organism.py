@@ -30,7 +30,6 @@ class VenomType(str, Enum):
 class DataSource(str, Enum):
     """Data source enumeration"""
     UNIPROT = "uniprot"
-    NCBI = "ncbi"
     MANUAL = "manual"
     GBIF = "gbif"
     OTHER = "other"
@@ -86,7 +85,7 @@ class OrganismBase(BaseModel):
     taxonomy_id: Optional[int] = Field(
         None,
         ge=1,
-        description="NCBI Taxonomy ID",
+        description="Taxonomy ID for organism identification",
         json_schema_extra={"example": 35670}
     )
     
@@ -129,7 +128,7 @@ class OrganismBase(BaseModel):
         description="External database identifiers",
         json_schema_extra={
             "example": {
-                "ncbi_taxonomy": "35670",
+                "taxonomy_id": "35670",
                 "uniprot_taxonomy": "35670",
                 "gbif": "2450804"
             }

@@ -25,7 +25,7 @@
 
 ## Overview
 
-VenomFlow is designed for collecting, processing, and analyzing venom peptide data from various sources including UniProt, NCBI, PubChem, and other biological databases. The platform leverages data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
+VenomFlow is designed for collecting, processing, and analyzing venom peptide data from UniProt. The platform leverages data engineering practices and tools to provide a scalable, maintainable, and extensible solution for venom research.
 
 ### Why VenomFlow?
 
@@ -41,9 +41,9 @@ VenomFlow is designed for collecting, processing, and analyzing venom peptide da
 ## Key Features
 
 ### Data Ingestion & Processing
-- **Multi-source Integration**: Fetch data from UniProt, NCBI, PubChem, and custom sources
+- **UniProt Integration**: Fetch data from UniProt with rate limiting and pagination
 - **Automated Validation**: Ensure data quality with comprehensive validation rules
-- **Sequence Analysis**: BLAST integration for homology searches
+- **Sequence Analysis**: Sequence similarity analysis for homology searches
 - **Property Enrichment**: Automatic calculation of physicochemical properties
 - **Batch Processing**: Efficient handling of large datasets
 
@@ -194,8 +194,8 @@ VenomFlow follows a microservices architecture with a separation of concerns.
 │  ┌────────────────┬────────────────┬────────────────────────┐   │
 │  │  Ingestion     │  Validation    │  Enrichment            │   │
 │  │  - UniProt     │  - Schema      │  - Properties          │   │
-│  │  - NCBI        │  - Quality     │  - BLAST               │   │
-│  │  - PubChem     │  - Dedup       │  - Cross-reference     │   │
+│  │                │  - Quality     │  - Similarity          │   │
+│  │                │  - Dedup       │  - Cross-reference     │   │
 │  └────────────────┴────────────────┴────────────────────────┘   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │

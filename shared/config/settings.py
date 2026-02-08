@@ -167,23 +167,16 @@ class Settings(BaseSettings):
     # =============================================================================
     # EXTERNAL APIS
     # =============================================================================
-    ncbi_api_key: Optional[str] = Field(default=None, description="NCBI API key")
-    ncbi_email: Optional[str] = Field(default=None, description="Email for NCBI API")
     uniprot_api_base_url: str = Field(
         default="https://rest.uniprot.org",
         description="UniProt API base URL"
     )
-    pubchem_api_base_url: str = Field(
-        default="https://pubchem.ncbi.nlm.nih.gov/rest/pug",
-        description="PubChem API base URL"
-    )
     
     # =============================================================================
-    # BLAST CONFIGURATION
+    # SEQUENCE SIMILARITY CONFIGURATION
     # =============================================================================
-    blast_db_path: str = Field(default="/data/blast/db", description="BLAST database path")
-    blast_threads: int = Field(default=4, description="Number of BLAST threads")
-    blast_max_target_seqs: int = Field(default=100, description="Maximum BLAST target sequences")
+    similarity_threads: int = Field(default=4, description="Number of similarity calculation threads")
+    similarity_max_target_seqs: int = Field(default=100, description="Maximum similarity target sequences")
     
     # =============================================================================
     # DATA PROCESSING
