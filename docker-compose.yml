@@ -294,6 +294,55 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ===========================================================================
+  # API - FastAPI with Strawberry GraphQL
+  # ===========================================================================
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: venomflow-api
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ELASTIC_HOST: ${ELASTIC_HOST}
+      ELASTIC_PORT: ${ELASTIC_PORT}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      API_PORT: 8000
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+      - ./shared:/app/shared
+    networks:
+      - venomflow-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 # =============================================================================
 # NETWORKS
 # =============================================================================
