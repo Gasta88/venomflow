@@ -63,6 +63,8 @@ up:
 	@echo "  Grafana:         http://localhost:3001"
 	@echo "  Prometheus:      http://localhost:9090"
 	@echo "  Elasticsearch:   http://localhost:9200"
+	@echo "  GraphQL API:     http://localhost:8000"
+
 
 # Stop all services
 down:

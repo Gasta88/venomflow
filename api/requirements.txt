@@ -1,0 +1,39 @@
+# =============================================================================
+# VENOMFLOW API DEPENDENCIES
+# =============================================================================
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# GraphQL
+strawberry-graphql[fastapi]==0.219.0
+
+# ASGI Server
+uvloop==0.19.0
+
+# HTTP Client
+httpx==0.26.0
+
+# Data Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+asyncpg==0.29.0
+sqlalchemy==2.0.25
+
+# Cache
+redis==5.0.1
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Logging
+structlog==24.1.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0
