@@ -16,27 +16,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
+from schema.queries import Query
+
 # =============================================================================
 # GRAPHQL SCHEMA DEFINITION
 # =============================================================================
 
-
-@strawberry.type
-class Query:
-    """Root Query type for GraphQL schema"""
-
-    @strawberry.field
-    def health(self) -> str:
-        """Health check query for GraphQL endpoint"""
-        return "GraphQL is healthy!"
-
-    @strawberry.field
-    def hello(self, name: str = "World") -> str:
-        """Simple hello query for testing"""
-        return f"Hello, {name}!"
-
-
-# Create Strawberry schema
+# Create Strawberry schema with Query resolvers
 schema = strawberry.Schema(query=Query)
 
 # =============================================================================
@@ -60,7 +46,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Dagster UI
+        "http://localhost:3000",  # Frontend / Dagster UI
         "http://localhost:3001",  # Grafana
         "http://localhost:8000",  # API itself
     ],
@@ -106,15 +92,15 @@ app.include_router(graphql_app, prefix="/graphql")
 @app.on_event("startup")
 async def startup_event() -> None:
     """Execute on application startup"""
-    print("🚀 VenomFlow API starting...")
-    print("📊 GraphQL Playground available at: http://localhost:8000/graphql")
-    print("❤️  Health check available at: http://localhost:8000/health")
+    print("VenomFlow API starting...")
+    print("GraphQL Playground available at: http://localhost:8000/graphql")
+    print("Health check available at: http://localhost:8000/health")
 
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Execute on application shutdown"""
-    print("👋 VenomFlow API shutting down...")
+    print("VenomFlow API shutting down...")
 
 
 # =============================================================================
