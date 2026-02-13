@@ -35,7 +35,7 @@ class ElasticsearchResource(dg.ConfigurableResource):
 
     verify_certs: bool = Field(
         default=None,
-        description="Whether to verify SSL certificates. Defaults to not settings.minio_secure.",
+        description="Whether to verify SSL certificates. Defaults to True for https, False for http.",
     )
 
     ca_certs: Optional[str] = Field(
@@ -65,7 +65,7 @@ class ElasticsearchResource(dg.ConfigurableResource):
         ssl_config = {
             "verify_certs": self.verify_certs
             if self.verify_certs is not None
-            else not settings.minio_secure
+            else settings.elastic_scheme == "https"
         }
         if self.ca_certs:
             ssl_config["ca_certs"] = self.ca_certs

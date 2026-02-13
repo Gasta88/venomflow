@@ -21,6 +21,8 @@ elasticsearch==8.11.0
 # Data processing
 pandas==2.1.4
 numpy==1.26.2
+biopython==1.86
+rdkit==2025.9.1
 
 # HTTP requests
 requests==2.31.0
@@ -36,3 +38,6 @@ structlog==23.2.0
 
 # Utilities
 python-dateutil==2.8.2
+
+# Test
+pytest

@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session
 from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 
 from assets.property_calculators import (
-    compute_biopython_properties,
-    compute_rdkit_properties,
+    compute_properties_with_fallbacks,
 )
 from resources.database import DatabaseResource
 
@@ -25,6 +24,7 @@ BATCH_SIZE = 50
 
 @asset(
     group_name="enrichment",
+    deps=["venom_peptides_uniprot"],
     description="""
     Computes physicochemical properties for peptides using RDKit and BioPython.
 
@@ -39,7 +39,6 @@ BATCH_SIZE = 50
 def compute_peptide_properties(
     context: AssetExecutionContext,
     database: DatabaseResource,
-    venom_peptides_uniprot,
 ) -> MaterializeResult:
     """
     Dagster asset for computing peptide physicochemical properties.
@@ -67,13 +66,13 @@ def compute_peptide_properties(
     peptides_processed = 0
     properties_computed = 0
     error_count = 0
-    rdkit_errors = 0
-    biopython_errors = 0
 
     logp_values = []
     tpsa_values = []
     isoelectric_point_values = []
     hydrophobicity_values = []
+
+    method_counts = {}
 
     try:
         context.log.info("Fetching peptides without properties...")
@@ -126,46 +125,37 @@ def compute_peptide_properties(
                     f"Computing properties for peptide {peptide_name} (ID: {peptide_id})"
                 )
 
-                rdkit_props = compute_rdkit_properties(sequence)
-                biopython_props = compute_biopython_properties(sequence)
+                props = compute_properties_with_fallbacks(sequence)
+                calculation_method = props.get("calculation_method", "Unknown")
 
-                if rdkit_props is None:
-                    rdkit_errors += 1
-                    context.log.warning(
-                        f"RDKit computation failed for peptide {peptide_id} ({peptide_name})"
-                    )
-                    continue
-
-                if biopython_props is None:
-                    biopython_errors += 1
-                    context.log.warning(
-                        f"BioPython computation failed for peptide {peptide_id} ({peptide_name})"
-                    )
+                method_counts[calculation_method] = (
+                    method_counts.get(calculation_method, 0) + 1
+                )
 
                 property_record = {
                     "peptide_id": peptide_id,
-                    "logp": rdkit_props.get("logp"),
-                    "tpsa": rdkit_props.get("tpsa"),
-                    "num_h_donors": rdkit_props.get("num_h_donors"),
-                    "num_h_acceptors": rdkit_props.get("num_h_acceptors"),
-                    "isoelectric_point": biopython_props.get("isoelectric_point")
-                    if biopython_props
-                    else None,
-                    "hydrophobicity": biopython_props.get("hydrophobicity")
-                    if biopython_props
-                    else None,
-                    "calculation_method": "RDKit + BioPython",
+                    "logp": props.get("logp"),
+                    "tpsa": props.get("tpsa"),
+                    "num_h_donors": props.get("num_h_donors"),
+                    "num_h_acceptors": props.get("num_h_acceptors"),
+                    "isoelectric_point": props.get("isoelectric_point"),
+                    "hydrophobicity": props.get("hydrophobicity"),
+                    "calculation_method": calculation_method,
                 }
 
                 properties_list.append(property_record)
 
-                logp_values.append(rdkit_props["logp"])
-                tpsa_values.append(rdkit_props["tpsa"])
-                if biopython_props:
-                    isoelectric_point_values.append(
-                        biopython_props["isoelectric_point"]
-                    )
-                    hydrophobicity_values.append(biopython_props["hydrophobicity"])
+                if "logp" in props and props["logp"] is not None:
+                    logp_values.append(props["logp"])
+                if "tpsa" in props and props["tpsa"] is not None:
+                    tpsa_values.append(props["tpsa"])
+                if (
+                    "isoelectric_point" in props
+                    and props["isoelectric_point"] is not None
+                ):
+                    isoelectric_point_values.append(props["isoelectric_point"])
+                if "hydrophobicity" in props and props["hydrophobicity"] is not None:
+                    hydrophobicity_values.append(props["hydrophobicity"])
 
                 if peptides_processed % 10 == 0:
                     context.log.info(
@@ -189,27 +179,26 @@ def compute_peptide_properties(
 
         session.commit()
 
-        error_count = rdkit_errors + biopython_errors
+        error_count = peptides_processed - properties_computed
 
-        avg_logp = sum(logp_values) / len(logp_values) if logp_values else 0
-        avg_tpsa = sum(tpsa_values) / len(tpsa_values) if tpsa_values else 0
+        avg_logp = sum(logp_values) / len(logp_values) if logp_values else 0.0
+        avg_tpsa = sum(tpsa_values) / len(tpsa_values) if tpsa_values else 0.0
         avg_isoelectric_point = (
             sum(isoelectric_point_values) / len(isoelectric_point_values)
             if isoelectric_point_values
-            else 0
+            else 0.0
         )
         avg_hydrophobicity = (
             sum(hydrophobicity_values) / len(hydrophobicity_values)
             if hydrophobicity_values
-            else 0
+            else 0.0
         )
 
         context.log.info(
             f"Successfully computed properties for {properties_computed} peptides"
         )
-        context.log.info(
-            f"Errors: {error_count} (RDKit: {rdkit_errors}, BioPython: {biopython_errors})"
-        )
+        context.log.info(f"Errors: {error_count}")
+        context.log.info(f"Calculation methods used: {method_counts}")
         context.log.info(f"Average LogP: {avg_logp:.3f}")
         context.log.info(f"Average TPSA: {avg_tpsa:.2f} Å²")
         context.log.info(f"Average isoelectric_point: {avg_isoelectric_point:.2f}")
@@ -219,8 +208,6 @@ def compute_peptide_properties(
             "peptides_processed": MetadataValue.int(peptides_processed),
             "properties_computed": MetadataValue.int(properties_computed),
             "error_count": MetadataValue.int(error_count),
-            "rdkit_errors": MetadataValue.int(rdkit_errors),
-            "biopython_errors": MetadataValue.int(biopython_errors),
             "avg_logp": MetadataValue.float(avg_logp),
             "avg_tpsa": MetadataValue.float(avg_tpsa),
             "avg_isoelectric_point": MetadataValue.float(avg_isoelectric_point),
@@ -256,24 +243,26 @@ def _batch_insert_properties(
     insert_query = text("""
         INSERT INTO properties (
             peptide_id,
-            isoelectric_point,
-            hydrophobicity,
+            molecular_weight,
             logp,
             tpsa,
             num_h_donors,
             num_h_acceptors,
+            isoelectric_point,
+            hydrophobicity,
             calculation_method,
             calculated_at,
             created_at,
             updated_at
         ) VALUES (
             :peptide_id,
-            :isoelectric_point,
-            :hydrophobicity,
+            :molecular_weight,
             :logp,
             :tpsa,
             :num_h_donors,
             :num_h_acceptors,
+            :isoelectric_point,
+            :hydrophobicity,
             :calculation_method,
             NOW(),
             NOW(),
@@ -281,12 +270,13 @@ def _batch_insert_properties(
         )
         ON CONFLICT (peptide_id)
         DO UPDATE SET
-            isoelectric_point = EXCLUDED.isoelectric_point,
-            hydrophobicity = EXCLUDED.hydrophobicity,
+            molecular_weight = EXCLUDED.molecular_weight,
             logp = EXCLUDED.logp,
             tpsa = EXCLUDED.tpsa,
             num_h_donors = EXCLUDED.num_h_donors,
             num_h_acceptors = EXCLUDED.num_h_acceptors,
+            isoelectric_point = EXCLUDED.isoelectric_point,
+            hydrophobicity = EXCLUDED.hydrophobicity,
             calculation_method = EXCLUDED.calculation_method,
             calculated_at = NOW(),
             updated_at = NOW()

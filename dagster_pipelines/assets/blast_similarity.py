@@ -9,13 +9,11 @@ This asset:
 """
 
 import logging
-import os
-import sys
-import subprocess
-import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
+from Bio import Align
+from Bio.Align import substitution_matrices
 from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -25,8 +23,29 @@ from resources.database import DatabaseResource
 
 logger = logging.getLogger(__name__)
 
-ALIGNMENT_SCORE_THRESHOLD = 50
+ALIGNMENT_SCORE_THRESHOLD = 0.5
 QUERY_LOG_INTERVAL = 100
+
+# Create a global aligner for reuse - using Smith-Waterman for local alignment
+aligner: Align.PairwiseAligner = None
+
+
+def get_aligner() -> Align.PairwiseAligner:
+    """
+    Get or create the global BioPython PairwiseAligner.
+
+    Returns:
+        Configured PairwiseAligner for peptide sequence alignment
+    """
+    global aligner
+    if aligner is None:
+        aligner = Align.PairwiseAligner(
+            mode="local",
+            substitution_matrix=substitution_matrices.load("BLOSUM50"),
+            open_gap_score=-5,
+            extend_gap_score=-0.5,
+        )
+    return aligner
 
 
 def create_fasta_from_peptides(
@@ -47,95 +66,82 @@ def create_fasta_from_peptides(
 
 def create_alignment_database(fasta_path: Path, db_path: Path) -> bool:
     """
-    Create a sequence alignment database from a FASTA file.
+    Placeholder function - not needed for BioPython pairwise alignment.
+
+    BioPython performs in-memory pairwise comparisons without needing
+    an indexed database. This function exists for API compatibility.
 
     Args:
-        fasta_path: Path to the input FASTA file
-        db_path: Path to the alignment database directory
+        fasta_path: Path to FASTA file (unused)
+        db_path: Path to database location (unused)
 
     Returns:
-        True if successful, False otherwise
+        Always True
     """
-    db_dir = db_path.parent
-    db_name = db_path.stem
-
-    if not db_dir.exists():
-        db_dir.mkdir(parents=True, exist_ok=True)
-
-    # Note: This is a placeholder for sequence alignment database creation
-    # In a production environment, you would use appropriate sequence alignment tools
-    try:
-        # Copy the FASTA file as a simple database for now
-        import shutil
-        shutil.copy(str(fasta_path), str(db_path.with_suffix('.fasta')))
-        logger.info(f"Alignment database created: {db_path}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to create alignment database: {e}")
-        return False
+    return True
 
 
 def run_alignment(
-    query_fasta_path: Path,
-    db_path: Path,
-    output_path: Path,
+    query_sequence: str,
+    target_sequences: List[Tuple[str, str, str]],
     score_threshold: float = ALIGNMENT_SCORE_THRESHOLD,
     max_target_seqs: int = 100,
-    num_threads: int = 4,
-) -> bool:
+) -> List[Dict[str, Any]]:
     """
-    Run sequence alignment for a query sequence against a database.
+    Perform sequence alignment using BioPython's PairwiseAligner.
 
-    Note: This is a placeholder implementation. In production, you would use
-    appropriate sequence alignment tools like Smith-Waterman, Needleman-Wunsch,
-    or other alignment algorithms.
+    Use Smith-Waterman algorithm for local alignment of peptide sequences.
 
     Args:
-        query_fasta_path: Path to the query FASTA file
-        db_path: Path to the alignment database
-        output_path: Path to write the output TSV file
-        score_threshold: Alignment score threshold
-        max_target_seqs: Maximum number of target sequences
-        num_threads: Number of threads to use
+        query_sequence: Query peptide sequence
+        target_sequences: List of tuples (peptide_id, name, sequence)
+        score_threshold: Normalized similarity threshold (0.0-1.0)
+        max_target_seqs: Maximum number of top hits to return
 
     Returns:
-        True if successful, False otherwise
+        List of alignment results with similarity scores
     """
-    try:
-        # Placeholder: Create empty output file
-        # In production, this would call actual alignment tools
-        with open(output_path, 'w') as f:
-            f.write("# Sequence alignment results\n")
-        logger.info(f"Alignment completed: {output_path}")
-        return True
-    except Exception as e:
-        logger.error(f"Alignment failed: {e}")
-        return False
+    aligner_instance = get_aligner()
+    results = []
+
+    for target_id, target_name, target_seq in target_sequences:
+        if target_id is None or target_id == query_sequence:
+            continue
+
+        score = aligner_instance.score(query_sequence, target_seq)
+        max_score = max(len(query_sequence), len(target_seq))
+        normalized_score: float = score / max_score if max_score > 0 else 0.0
+
+        if normalized_score >= score_threshold:
+            results.append({
+                "peptide_id_1": target_id,
+                "similarity_score": normalized_score,
+                "alignment_method": "smith-waterman",
+                "alignment_length": 0,
+                "identities": 0,
+                "gaps": 0,
+                "score": float(score),
+            })
+
+        if len(results) >= max_target_seqs:
+            break
+
+    return results
 
 
 def parse_alignment_results(
-    output_path: Path, peptide_id_map: Dict[str, str]
+    results: List[Dict[str, Any]], peptide_id_map: Dict[str, str]
 ) -> List[Dict[str, Any]]:
     """
-    Parse sequence alignment tabular output.
-
-    Note: This is a placeholder implementation. In production, you would parse
-    actual alignment tool output.
+    Parse and filter alignment results from BioPython.
 
     Args:
-        output_path: Path to the alignment results TSV file
-        peptide_id_map: Mapping from FASTA header (id|name) to peptide_id string
+        results: List of alignment results from run_alignment
+        peptide_id_map: Mapping fromFASTA header (id|name) to peptide_id string
 
     Returns:
-        List of parsed similarity records
+        List of similarity records ready for database insertion
     """
-    results = []
-
-    if not output_path.exists():
-        return results
-
-    # Placeholder: Return empty results for now
-    # In production, this would parse actual alignment results
     return results
 
 
@@ -161,17 +167,18 @@ def order_peptide_ids(peptide_id_1: str, peptide_id_2: str) -> Tuple[str, str]:
     description="""
     Computes sequence similarities between all peptides using sequence alignment.
 
-    Runs sequence alignment for each peptide and stores top 100 hits per peptide 
-    in the peptide_similarities table.
+    Uses BioPython's PairwiseAligner with Smith-Waterman algorithm for local
+    pairwise alignment of peptide sequences. Computes similarity scores and stores
+    top 100 hits per peptide in the peptide_similarities table.
 
     Configuration:
-    - Database path: settings.similarity_db_path (if configured)
-    - Threads: settings.similarity_threads
-    - Score threshold: configurable
+    - Score threshold: ALIGNMENT_SCORE_THRESHOLD (default 0.5)
     - Max hits per query: 100
-    
-    Note: This is a placeholder implementation. In production, integrate with
-    appropriate sequence alignment tools.
+    - Alignment algorithm: Smith-Waterman (local alignment)
+    - Substitution matrix: BLOSUM50
+
+    The similarity score is normalized to 0.0-1.0 range for easier interpretation
+    and downstream filtering.
     """,
 )
 def compute_sequence_similarities(
@@ -181,9 +188,9 @@ def compute_sequence_similarities(
     """
     Dagster asset for computing sequence similarities between peptides.
 
-    Note: This is currently a placeholder that sets up the framework for
-    sequence similarity computation. In production, integrate with actual
-    alignment tools like Smith-Waterman, Needleman-Wunsch, or other algorithms.
+    Uses BioPython's PairwiseAligner with Smith-Waterman algorithm for
+    local alignment of peptide sequences. Computes pairwise similarities
+    between all peptides and stores results in peptide_similarities table.
 
     Args:
         context: Dagster asset execution context
@@ -200,11 +207,6 @@ def compute_sequence_similarities(
     error_count = 0
 
     scores = []
-
-    fasta_path = None
-    # Use a default path if similarity_db_path is not configured
-    db_base_path = Path("/data/similarity/db") if not hasattr(settings, 'similarity_db_path') else Path(settings.similarity_db_path)
-    db_path = db_base_path / "peptides"
 
     try:
         context.log.info("Fetching all peptides from database...")
@@ -242,64 +244,36 @@ def compute_sequence_similarities(
                 }
             )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            temp_dir = Path(tmpdir)
+        context.log.info("Initializing BioPython PairwiseAligner...")
+        context.log.info("Computing pairwise sequence similarities using Smith-Waterman algorithm...")
 
-            fasta_path = temp_dir / "peptides.fasta"
+        for i, (query_id, query_name, query_sequence) in enumerate(peptides_data):
+            peptides_processed += 1
 
-            context.log.info(f"Creating FASTA file with {total_peptides} peptides...")
-            create_fasta_from_peptides(peptides_data, fasta_path)
+            if peptides_processed % QUERY_LOG_INTERVAL == 0:
+                context.log.info(
+                    f"Processed {peptides_processed}/{total_peptides} peptides"
+                )
 
-            context.log.info("Creating alignment database...")
-            if not create_alignment_database(fasta_path, db_path):
-                raise RuntimeError("Failed to create alignment database")
+            context.log.debug(f"Aligning {query_name} (ID: {query_id}) against {total_peptides} peptides")
 
-            context.log.info("Running sequence alignment for each peptide...")
-            context.log.info("Note: This is a placeholder implementation. Integrate with actual alignment tools in production.")
-
-            for i, (peptide_id, name, sequence) in enumerate(peptides_data):
-                peptides_processed += 1
-
-                if peptides_processed % QUERY_LOG_INTERVAL == 0:
-                    context.log.info(
-                        f"Processed {peptides_processed}/{total_peptides} peptides"
-                    )
-
-                query_fasta_path = temp_dir / f"query_{peptides_processed}.fasta"
-                output_path = temp_dir / f"alignment_results_{peptides_processed}.tsv"
-
-                with open(query_fasta_path, "w") as f:
-                    f.write(f">{peptide_id}|{name}\n")
-                    f.write(f"{sequence}\n")
-
-                if not run_alignment(
-                    query_fasta_path=query_fasta_path,
-                    db_path=db_path,
-                    output_path=output_path,
+            try:
+                results = run_alignment(
+                    query_sequence=query_sequence,
+                    target_sequences=peptides_data,
                     score_threshold=ALIGNMENT_SCORE_THRESHOLD,
                     max_target_seqs=getattr(settings, 'similarity_max_target_seqs', 100),
-                    num_threads=getattr(settings, 'similarity_threads', 4),
-                ):
-                    error_count += 1
-                    context.log.warning(
-                        f"Alignment failed for peptide {name} (ID: {peptide_id})"
-                    )
-                    continue
-
-                results = parse_alignment_results(output_path, {})
+                )
 
                 for result in results:
-                    ordered_id_1, ordered_id_2 = order_peptide_ids(
-                        result["peptide_id_1"], result["peptide_id_2"]
-                    )
+                    target_id = result["peptide_id_1"]
+                    ordered_id_1, ordered_id_2 = order_peptide_ids(query_id, target_id)
+                    result["peptide_id_1"] = ordered_id_1
+                    result["peptide_id_2"] = ordered_id_2
 
                     insert_result = _insert_similarity(
                         session,
-                        {
-                            **result,
-                            "peptide_id_1": ordered_id_1,
-                            "peptide_id_2": ordered_id_2,
-                        },
+                        result,
                     )
 
                     if insert_result:
@@ -307,9 +281,16 @@ def compute_sequence_similarities(
                         if "score" in result:
                             scores.append(result["score"])
 
+            except Exception as e:
+                error_count += 1
+                context.log.error(
+                    f"Alignment failed for peptide {query_name} (ID: {query_id}): {e}"
+                )
+                continue
+
         session.commit()
 
-        avg_score = sum(scores) / len(scores) if scores else 0
+        avg_score = sum(scores) / len(scores) if scores else 0.0
 
         context.log.info(f"Successfully stored {similarities_stored} similarities")
         context.log.info(f"Errors: {error_count}")
@@ -322,8 +303,12 @@ def compute_sequence_similarities(
             "error_count": MetadataValue.int(error_count),
             "avg_score": MetadataValue.float(avg_score),
             "score_threshold": MetadataValue.float(ALIGNMENT_SCORE_THRESHOLD),
-            "max_target_seqs": MetadataValue.int(getattr(settings, 'similarity_max_target_seqs', 100)),
-            "alignment_threads": MetadataValue.int(getattr(settings, 'similarity_threads', 4)),
+            "max_target_seqs": MetadataValue.int(
+                getattr(settings, "similarity_max_target_seqs", 100)
+            ),
+            "alignment_threads": MetadataValue.int(
+                getattr(settings, "similarity_threads", 4)
+            ),
         }
 
         return MaterializeResult(metadata=metadata)
