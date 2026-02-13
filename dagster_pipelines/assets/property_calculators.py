@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 try:
     from rdkit import Chem
-    from rdkit.Chem import Descriptors
+    from rdkit.Chem import AllChem, Descriptors
 
     RDKIT_AVAILABLE = True
 except ImportError:
@@ -29,11 +29,97 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+AMINO_ACID_MAPPING = {
+    "X": "G",
+    "B": "D",
+    "Z": "E",
+    "U": "C",
+    "O": "K",
+}
+
+STANDARD_AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")
+
+BIOPYTHON_VALID_AAS = set("ACDEFGHIKLMNPQRSTVWY")
+
+AMINO_ACID_MW = {
+    "A": 89.09,
+    "R": 174.20,
+    "N": 132.12,
+    "D": 133.10,
+    "C": 121.16,
+    "Q": 146.15,
+    "E": 147.13,
+    "G": 75.07,
+    "H": 155.16,
+    "I": 131.17,
+    "L": 131.17,
+    "K": 146.19,
+    "M": 149.21,
+    "F": 165.19,
+    "P": 115.13,
+    "S": 105.09,
+    "T": 119.12,
+    "W": 204.23,
+    "Y": 181.19,
+    "V": 117.15,
+    "X": 110.00,
+    "B": 132.61,
+    "Z": 146.64,
+    "U": 150.41,
+    "O": 255.35,
+}
+
+
+def sanitize_sequence(sequence: str) -> str:
+    """Sanitize sequence by mapping non-standard amino acids to similar standards.
+
+    Args:
+        sequence: Peptide sequence that may contain non-standard amino acids.
+
+    Returns:
+        Sanitized sequence with non-standard AAs replaced.
+    """
+    return "".join(AMINO_ACID_MAPPING.get(c, c) for c in sequence)
+
+
+def calculate_molecular_weight_from_sequence(sequence: str) -> float:
+    """Calculate molecular weight from amino acid composition.
+
+    Args:
+        sequence: Peptide sequence string.
+
+    Returns:
+        Estimated molecular weight.
+    """
+    if not sequence:
+        return 0.0
+    return (
+        sum(AMINO_ACID_MW.get(aa, 110.0) for aa in sequence)
+        - (len(sequence) - 1) * 18.015
+    )
+
+
+def calculate_basic_properties(sequence: str) -> Dict[str, Any]:
+    """Calculate basic properties that can be computed for any sequence.
+
+    Args:
+        sequence: Peptide sequence string.
+
+    Returns:
+        Dictionary with basic molecular properties.
+    """
+    return {
+        "molecular_weight": calculate_molecular_weight_from_sequence(sequence),
+        "sequence_length": len(sequence),
+        "calculation_method": "Basic-Estimated",
+    }
+
 
 def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
     """Compute RDKit molecular properties for a peptide sequence.
 
-    Converts the peptide sequence to an RDKit molecule and computes:
+    Uses RDKit's native MolFromSequence() to properly create peptide bonds and
+    computes molecular properties including:
     - molecular_weight: Exact molecular mass
     - logp: Octanol-water partition coefficient
     - tpsa: Topological polar surface area (Å²)
@@ -41,7 +127,7 @@ def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
     - num_h_acceptors: Number of hydrogen bond acceptors
 
     Args:
-        sequence: Peptide sequence string (amino acids only).
+        sequence: Peptide sequence string (20 standard amino acids only).
 
     Returns:
         Dictionary with computed properties, or None if conversion fails.
@@ -49,56 +135,37 @@ def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
     Example:
         >>> props = compute_rdkit_properties("ACDEFGHIK")
         >>> print(props['molecular_weight'])
+
+    Note:
+        - Only 20 standard amino acids (ACDEFGHIKLMNPQRSTVWY) are supported
+        - Non-standard amino acids (X, B, Z, U, O) should be sanitized before calling
     """
     if not RDKIT_AVAILABLE:
         logger.warning("RDKit not available, skipping RDKit property computation")
         return None
 
     try:
-        amino_acids = {
-            "A": "C1C(=O)NC(C)=C1N",  # Alanine
-            "R": "NC(=N)NCCC(N)C(N)=O",  # Arginine
-            "N": "C(C(=O)N)N",  # Asparagine
-            "D": "C(C(=O)O)N",  # Aspartic acid
-            "C": "C(C(=O)N)S",  # Cysteine
-            "Q": "C(CC(=O)N)C(=O)N",  # Glutamine
-            "E": "C(CC(=O)O)C(=O)N",  # Glutamic acid
-            "G": "C(C(=O)N)N",  # Glycine
-            "H": "C(CC1=CN=CN1)C(=O)N",  # Histidine
-            "I": "C(C)C(C(=O)N)N",  # Isoleucine
-            "L": "CC(C)C(=O)N",  # Leucine
-            "K": "C(CCN)C(=O)N",  # Lysine
-            "M": "CSCC(=O)N",  # Methionine
-            "F": "NC(=O)C(C)C1=CC=CC=C1",  # Phenylalanine
-            "P": "C(C(=O)N)C1CCC1",  # Proline
-            "S": "C(C(=O)N)O",  # Serine
-            "T": "CC(C(=O)N)O",  # Threonine
-            "W": "C(C(=O)N)C1=CN=C2C=C(C=C2)C(=C1)",  # Tryptophan
-            "Y": "C(C(=O)N)C1=CC=C(C=C1)O",  # Tyrosine
-            "V": "CC(C)C(=O)N",  # Valine
-        }
+        standard_aas = set("ACDEFGHIKLMNPQRSTVWY")
 
         if not sequence:
             logger.warning("Empty sequence provided for RDKit computation")
             return None
 
-        if not all(aa in amino_acids for aa in sequence):
-            invalid_chars = set(sequence) - set(amino_acids.keys())
-            # Log warning about non-standard amino acids (X, B, Z, U, O) which are not supported by RDKit
+        if not all(aa in standard_aas for aa in sequence):
+            invalid_chars = set(sequence) - standard_aas
             logger.warning(
-                f"Non-standard amino acids in sequence (RDKit cannot compute properties): {invalid_chars}. "
-                "These amino acids (X=unknown, B=Asn/Asp, Z=Gln/Glu, U=selenocysteine, O=pyrrolysine) "
-                "are valid in the database but not supported for RDKit calculations."
+                f"Non-standard amino acids in sequence: {invalid_chars}. "
+                "RDKit MolFromSequence() only supports 20 standard amino acids."
             )
             return None
 
-        smiles = "".join(amino_acids[aa] for aa in sequence)
-        mol = Chem.MolFromSmiles(smiles)
+        mol = Chem.MolFromSequence(sequence)
 
         if mol is None:
-            logger.warning(f"RDKit failed to parse sequence: {sequence}")
+            logger.warning(f"RDKit MolFromSequence failed to parse sequence: {sequence}")
             return None
 
+        AllChem.Compute2DCoords(mol)
         mol = Chem.AddHs(mol)
 
         properties = {
@@ -107,6 +174,7 @@ def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
             "tpsa": Descriptors.TPSA(mol),
             "num_h_donors": Descriptors.NumHDonors(mol),
             "num_h_acceptors": Descriptors.NumHAcceptors(mol),
+            "calculation_method": "RDKit",
         }
 
         logger.debug(f"Computed RDKit properties for sequence length {len(sequence)}")
@@ -133,6 +201,10 @@ def compute_biopython_properties(sequence: str) -> Optional[Dict[str, Any]]:
     Example:
         >>> props = compute_biopython_properties("ACDEFGHIK")
         >>> print(props['isoelectric_point'])
+
+    Note:
+        Sequences with non-standard amino acids are now accepted but will use
+        approximate molecular weight estimation.
     """
     if not BIOPYTHON_AVAILABLE:
         logger.warning(
@@ -145,14 +217,15 @@ def compute_biopython_properties(sequence: str) -> Optional[Dict[str, Any]]:
             logger.warning("Empty sequence provided for BioPython computation")
             return None
 
-        valid_amino_acids = set("ACDEFGHIKLMNPQRSTVWY")
-        if not all(aa in valid_amino_acids for aa in sequence):
-            invalid_chars = set(sequence) - valid_amino_acids
-            logger.warning(f"Invalid amino acids in sequence: {invalid_chars}")
-            return None
+        if not all(aa in BIOPYTHON_VALID_AAS for aa in sequence):
+            invalid_chars = set(sequence) - BIOPYTHON_VALID_AAS
+            logger.debug(
+                f"Sequence contains non-standard amino acids: {invalid_chars}. "
+                "Using BioPython for pI and GRAVY, but results may be approximate."
+            )
 
         if len(sequence) < 10:
-            logger.warning(
+            logger.debug(
                 f"Sequence length {len(sequence)} may be too short for reliable pI calculation"
             )
 
@@ -202,3 +275,57 @@ def compute_all_properties(sequence: str) -> Optional[Dict[str, Any]]:
         return None
 
     return all_props
+
+
+def compute_properties_with_fallbacks(sequence: str) -> Dict[str, Any]:
+    """Compute peptide properties using fallback strategies for maximum compatibility.
+
+    Tries multiple computation strategies in order:
+    1. RDKit MolFromSequence (best) - for sequences with only standard AAs
+    2. Sanitized RDKit - for sequences with non-standard AAs that can be mapped
+    3. BioPython - protein biochemical properties (pI, GRAVY)
+    4. Basic estimation - always available
+
+    Args:
+        sequence: Peptide sequence string (may contain non-standard amino acids).
+
+    Returns:
+        Dictionary with computed properties including calculation_method.
+
+    Example:
+        >>> props = compute_properties_with_fallbacks("ACDEFGHIK")
+        >>> print(props['calculation_method'])
+    """
+    if not sequence:
+        logger.warning("Empty sequence provided")
+        return {"molecular_weight": 0, "calculation_method": "Empty-Sequence"}
+
+    # Strategy 1: Try RDKit with standard amino acids only
+    if set(sequence).issubset(STANDARD_AMINO_ACIDS):
+        rdkit_result = compute_rdkit_properties(sequence)
+        if rdkit_result:
+            return rdkit_result
+
+    # Strategy 2: Sanitize non-standard amino acids and retry RDKit
+    sanitized = sanitize_sequence(sequence)
+    if set(sanitized).issubset(STANDARD_AMINO_ACIDS):
+        rdkit_result = compute_rdkit_properties(sanitized)
+        if rdkit_result:
+            rdkit_result["calculation_method"] = "RDKit-Estimated"
+            return rdkit_result
+
+    # Strategy 3: Fall back to BioPython (works with non-standard AAs)
+    biopython_result = compute_biopython_properties(sequence)
+    if biopython_result:
+        biopython_result["calculation_method"] = "BioPython"
+        biopython_result["molecular_weight"] = calculate_molecular_weight_from_sequence(
+            sequence
+        )
+        return biopython_result
+
+    # Strategy 4: Return basic properties (always available)
+    return {
+        "molecular_weight": calculate_molecular_weight_from_sequence(sequence),
+        "sequence_length": len(sequence),
+        "calculation_method": "Basic-Estimated",
+    }

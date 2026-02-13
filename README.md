@@ -329,9 +329,9 @@ pip install -r api/requirements.txt
    ```
 
 3. **Start infrastructure services**
-   ```bash
-   docker compose up -d postgres redis elasticsearch minio
-   ```
+    ```bash
+    docker compose up -d postgres redis elasticsearch
+    ```
 
 4. **Run database migrations**
     ```bash

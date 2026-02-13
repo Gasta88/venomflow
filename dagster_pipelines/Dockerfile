@@ -26,8 +26,7 @@ WORKDIR /opt/dagster/app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir rdkit biopython
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .

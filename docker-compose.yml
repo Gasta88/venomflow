@@ -138,7 +138,7 @@ services:
     networks:
       - venomflow-network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      test: ["CMD-SHELL", "wget -q --spider -O /dev/null http://localhost:9090/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -175,7 +175,7 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -235,7 +235,7 @@ services:
       -p 3000
       -w /opt/dagster/app/workspace.yaml
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/server_info"]
+      test: ["CMD-SHELL", "curl -s http://localhost:3000/server_info | grep -q dagster_version"]
       interval: 30s
       timeout: 10s
       retries: 3

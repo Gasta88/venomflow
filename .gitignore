@@ -46,6 +46,8 @@ env/
 dagster_home/
 .dagster/
 dagster.yaml.bak
+.logs_queue/
+.nux/
 
 # Testing
 .pytest_cache/

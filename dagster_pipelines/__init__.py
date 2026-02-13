@@ -9,7 +9,7 @@ from dagster import Definitions
 
 from assets import (
     venom_peptides_uniprot,
-    compute_blast_similarities,
+    compute_sequence_similarities,
     index_peptides_to_elasticsearch,
 )
 from assets.enrichment import compute_peptide_properties
@@ -23,7 +23,7 @@ defs = Definitions(
     assets=[
         venom_peptides_uniprot,
         compute_peptide_properties,
-        compute_blast_similarities,
+        compute_sequence_similarities,
         index_peptides_to_elasticsearch,
     ],
     jobs=[venom_flow_pipeline],
