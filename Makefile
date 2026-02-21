@@ -34,8 +34,8 @@ help:
 	@echo "Dagster:"
 	@echo "  make shell-dagster-daemon     - Open Dagster daemon container shell"
 	@echo "  make shell-dagster-webserver  - Open Dagster webserver container shell"
-	@echo "  make test                     - Run tests in Dagster daemon"
-	@echo "  make test-cov                 - Run tests with coverage"
+	@echo "  make test                     - Run unit tests locally"
+	@echo "  make test-cov                 - Run tests with coverage report"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev-setup       - Setup development environment"
@@ -130,13 +130,13 @@ shell-dagster-daemon:
 shell-dagster-webserver:
 	docker-compose exec dagster-webserver bash
 
-# Run tests
+# Run unit tests locally (no Docker required)
 test:
-	docker-compose exec dagster-daemon pytest tests/ -v
+	PYTHONPATH=dagster_pipelines:. pytest tests/ -v
 
-# Run tests with coverage
+# Run tests with coverage report
 test-cov:
-	docker-compose exec dagster-daemon pytest tests/ -v --cov=src --cov-report=html
+	PYTHONPATH=dagster_pipelines:. pytest tests/ -v --cov=dagster_pipelines --cov-report=term-missing
 
 
 # Backup database

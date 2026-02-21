@@ -128,7 +128,7 @@ Get VenomFlow running locally in under 5 minutes!
 
 5. **Access the services**
    - **Dagster UI**: http://localhost:3000
-   - **Grafana**: http://localhost:3001 (admin/changeme_grafana_password)
+   - **Grafana**: http://localhost:3001
    - **Prometheus**: http://localhost:9090
    - **Elasticsearch**: http://localhost:9200
    - **PostgreSQL**: localhost:5432
@@ -235,12 +235,12 @@ VenomFlow follows a microservices architecture with a separation of concerns.
 
 ```
 venomflow/
-├── 📄 README.md                        # This file
-├── 📄 .env.example                     # Environment variables template
-├── 📄 .gitignore                       # Git ignore rules
-├── 📄 docker-compose.yml               # Docker orchestration
+├── README.md                        # This file
+├── .env.example                     # Environment variables template
+├── .gitignore                       # Git ignore rules
+├── docker-compose.yml               # Docker orchestration
 │
-├── 📂 api/                             # FastAPI GraphQL API
+├── api/                             # FastAPI GraphQL API
 │   ├── Dockerfile                      # API container definition
 │   ├── requirements.txt                # API dependencies
 │   ├── main.py                         # API entry point
@@ -254,7 +254,7 @@ venomflow/
 │   │   └── search.py                   # Search services
 │   └── tests/                          # API tests
 │
-├── 📂 dagster_pipelines/               # Dagster orchestration
+├── dagster_pipelines/               # Dagster orchestration
 │   ├── Dockerfile                      # Dagster container definition
 │   ├── requirements.txt                # Dagster dependencies
 │   ├── dagster.yaml                    # Dagster configuration
@@ -269,7 +269,7 @@ venomflow/
 │   ├── sensors/                        # Event sensors
 │   └── tests/                          # Pipeline tests
 │
-├── 📂 shared/                          # Shared code across services
+├── shared/                          # Shared code across services
 │   ├── config/                         # Configuration management
 │   │   └── settings.py                 # Pydantic settings
 │   ├── models/                         # Data models
@@ -284,98 +284,25 @@ venomflow/
 │   └── utils/                          # Utility functions
 │       └── validators.py               # Data validators
 │
-├── 📂 workers/                         # Background workers
+├── workers/                         # Background workers
 │   ├── enrichment_worker.py            # Enrichment processor
 │   └── blast_runner.py                 # BLAST execution
 │
-├── 📂 scripts/                         # Utility scripts
+├── scripts/                         # Utility scripts
 │   ├── init_database.sh                # Database initialization
 │   ├── verify_infrastructure.py        # Infrastructure check
 │   ├── seed_test_data.py               # Test data seeding
 │   └── backup.sh                       # Backup automation
 │
-├── 📂 monitoring/                      # Monitoring configuration
+├── monitoring/                      # Monitoring configuration
 │   ├── prometheus/                     # Prometheus config
 │   │   └── prometheus.yml              # Scrape targets
 │   └── grafana/                        # Grafana config
 │       ├── dashboards/                 # Dashboard definitions
 │       └── datasources/                # Data source config
 │
-├── 📂 tests/                           # Test suite
-│   ├── unit/                           # Unit tests
-│   ├── integration/                    # Integration tests
-│   └── fixtures/                       # Test fixtures
-```
-
----
-
-## Development Workflow
-
-### Setting Up Development Environment
-
-1. **Clone and install dependencies**
-   ```bash
-git clone https://github.com/Gasta88/venomflow.git
-cd venomflow
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r dagster_pipelines/requirements.txt
-pip install -r api/requirements.txt
-   ```
-
-2. **Install development tools**
-   ```bash
-   pip install black isort flake8 mypy pytest pytest-cov
-   ```
-
-3. **Start infrastructure services**
-    ```bash
-    docker compose up -d postgres redis elasticsearch
-    ```
-
-4. **Run database migrations**
-    ```bash
-    make init-db
-    ```
-
-5. **Start development servers**
-```bash
-    # Terminal 1: Dagster
-    cd dagster_pipelines
-    dagster dev
-
-   # Terminal 2: API
-   cd api
-   uvicorn main:app --reload --port 8000
-   ```
-
-### Code Quality
-
-```bash
-# Format code
-black .
-isort .
-
-# Lint
-flake8 .
-mypy .
-
-# Test
-make test
-```
-
-### Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/your-feature-name
-
-# Make changes and commit
-git add .
-git commit -m "feat: add new feature"
-
-# Push and create PR
-git push origin feature/your-feature-name
+├── tests/                           # Test suite
+│   └── unit/                        # Unit fixtures
 ```
 
 ---
@@ -420,8 +347,6 @@ API_SECRET_KEY=your_32_character_secret_key_here
 
 ---
 
----
-
 ## API Documentation
 
 ### GraphQL Playground
@@ -430,20 +355,30 @@ Access the interactive GraphQL playground at http://localhost:8000/graphql
 
 ### Example Queries
 
-**Get all peptides**
+**Get peptides with pagination**
 ```graphql
 query GetPeptides {
-  peptides(limit: 10) {
-    id
-    sequence
-    name
-    organism {
+  searchPeptides(page: 1, pageSize: 10) {
+    items {
+      id
+      sequence
       name
-      taxonomy
+      organism {
+        name
+        taxonomyId
+      }
+      bioactivities {
+        activityType
+        value
+      }
     }
-    bioactivities {
-      type
-      value
+    pageInfo {
+      total
+      page
+      pageSize
+      totalPages
+      hasNext
+      hasPrevious
     }
   }
 }
@@ -452,26 +387,57 @@ query GetPeptides {
 **Search peptides**
 ```graphql
 query SearchPeptides {
-  searchPeptides(query: "neurotoxin", limit: 5) {
-    id
-    sequence
-    name
-    score
+  searchPeptides(query: "neurotoxin", page: 1, pageSize: 5) {
+    items {
+      id
+      sequence
+      name
+      qualityScore
+    }
+    pageInfo {
+      total
+      page
+    }
   }
 }
 ```
 
-**Create peptide**
+**Get peptide by UniProt accession**
 ```graphql
-mutation CreatePeptide {
-  createPeptide(input: {
-    sequence: "ACDEFGHIKLMNPQRSTVWY"
-    name: "Test Peptide"
-    organismId: "1"
-  }) {
+query GetPeptide {
+  peptide(accession: "P00974") {
     id
-    sequence
+    uniprotId
     name
+    sequence
+    organism {
+      name
+      venomType
+    }
+    properties {
+      isoelectricPoint
+      hydrophobicity
+    }
+  }
+}
+```
+
+**Find similar peptides**
+```graphql
+query SimilarPeptides {
+  similarPeptides(accession: "P00974", threshold: 0.7, limit: 10) {
+    queryAccession
+    threshold
+    items {
+      peptide {
+        id
+        name
+        sequence
+      }
+      similarityScore
+      alignmentMethod
+    }
+    total
   }
 }
 ```
@@ -602,23 +568,37 @@ make logs | grep ERROR
 
 ## Testing
 
+The project uses **pytest** for unit testing. Tests cover all Dagster pipeline assets, helper functions, resources, job definitions, and shared configuration. No external services (database, Elasticsearch, Redis) are needed to run the test suite — all dependencies are mocked.
+
 ### Running Tests
 
 ```bash
-# All tests
+# Run the full test suite locally (no Docker required)
 make test
 
-# Unit tests only
-make test tests/unit/
-
-# Integration tests
-make test tests/integration/
-
-# With coverage
+# Run tests with coverage report
 make test-cov
 
-# Specific test file
-make test tests/unit/test_peptide.py -v
+# Run tests inside the Dagster daemon container
+make test-docker
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py                         # Shared fixtures (mock_context, mock_database_resource, mock_session)
+├── unit/
+│   ├── assets/
+│   │   ├── test_blast_similarity.py    # Sequence alignment, helpers, asset
+│   │   ├── test_elasticsearch_indexer.py # Index creation, mapping, bulk indexing
+│   │   ├── test_enrichment.py          # Property enrichment asset, batch helpers
+│   │   └── test_ingestion.py           # UniProt ingestion, hashing, batch insert
+│   ├── test_property_calculators.py    # RDKit/BioPython property computation
+│   ├── test_resources.py               # Database, Elasticsearch, Redis resources
+│   ├── test_jobs.py                    # Dagster job definitions
+│   └── test_settings.py               # Pydantic settings and validators
+└── integration/                        # (reserved for future integration tests)
 ```
 
 ---

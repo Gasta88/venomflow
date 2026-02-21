@@ -15,9 +15,9 @@ uvloop==0.19.0
 # HTTP Client
 httpx==0.26.0
 
-# Data Validation
-pydantic==2.5.3
-pydantic-settings==2.1.0
+# Data Validation - Pydantic 2.10+ for Python 3.13 support
+pydantic==2.10.0
+pydantic-settings==2.13.1
 
 # Database
 asyncpg==0.29.0

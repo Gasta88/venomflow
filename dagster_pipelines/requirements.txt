@@ -2,14 +2,14 @@
 # DAGSTER ORCHESTRATION REQUIREMENTS
 # =============================================================================
 
-# Core Dagster
-dagster==1.5.12
-dagster-webserver==1.5.12
-dagster-postgres==0.21.12
-dagster-docker==0.21.12
+# Core Dagster - 1.12+ removed pendulum dependency, Python 3.13 compatible
+dagster==1.12.15
+dagster-webserver==1.12.15
+dagster-postgres>=0.21
+dagster-docker>=0.21
 
-# Database
-psycopg2-binary==2.9.9
+# Database - psycopg3 for Python 3.13 compatibility
+psycopg[binary]>=3.1
 sqlalchemy==2.0.23
 
 # Redis for caching and event streaming
@@ -18,9 +18,9 @@ redis==5.0.1
 # Elasticsearch client
 elasticsearch==8.11.0
 
-# Data processing
+# Data processing - Python 3.11 compatible (avoiding numpy 2.x serialization issues)
 pandas==2.1.4
-numpy==1.26.2
+numpy==1.26.4
 biopython==1.86
 rdkit==2025.9.1
 
@@ -28,9 +28,9 @@ rdkit==2025.9.1
 requests==2.31.0
 httpx==0.25.2
 
-# Configuration
-pydantic==2.5.2
-pydantic-settings==2.1.0
+# Configuration - Pydantic 2.10+ for Python 3.13 support
+pydantic==2.10.0
+pydantic-settings==2.13.1
 python-dotenv==1.0.0
 
 # Logging and monitoring

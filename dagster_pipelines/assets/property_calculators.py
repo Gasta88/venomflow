@@ -238,15 +238,17 @@ def compute_biopython_properties(sequence: str) -> Optional[Dict[str, Any]]:
         aromaticity = prot_analysis.aromaticity()
 
         properties = {
-            "isoelectric_point": round(isoelectric_point, 2),
-            "hydrophobicity": round(hydrophobicity, 3),
-            "instability_index": round(instability_index, 2),
-            "aromaticity": round(aromaticity, 4),
+            "isoelectric_point": float(round(isoelectric_point, 2)),
+            "hydrophobicity": float(round(hydrophobicity, 3)),
+            "instability_index": float(round(instability_index, 2)),
+            "aromaticity": float(round(aromaticity, 4)),
         }
 
-        net_charge_at_ph7 = prot_analysis.charge_at_ph(7.0)
+        net_charge_at_ph7 = prot_analysis.charge_at_pH(7.0)
         properties["charge_at_ph7"] = (
-            round(net_charge_at_ph7, 3) if net_charge_at_ph7 is not None else None
+            float(round(net_charge_at_ph7, 3))
+            if net_charge_at_ph7 is not None
+            else None
         )
 
         logger.debug(

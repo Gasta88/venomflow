@@ -1,364 +1,219 @@
-"""
-Unit tests for property calculation functions.
-Tests RDKit and BioPython property computation for peptide sequences.
+"""Unit tests for property calculation functions.
+
+Tests BioPython property computation for peptide sequences.
+RDKit is not available in test environment, so those paths are tested via mock.
 """
 
 import pytest
 from unittest.mock import patch, MagicMock
 
+from dagster_pipelines.assets.property_calculators import (
+    sanitize_sequence,
+    calculate_molecular_weight_from_sequence,
+    calculate_basic_properties,
+    compute_biopython_properties,
+    compute_rdkit_properties,
+    compute_all_properties,
+    compute_properties_with_fallbacks,
+    BIOPYTHON_AVAILABLE,
+    STANDARD_AMINO_ACIDS,
+    AMINO_ACID_MAPPING,
+)
+
+
+class TestSanitizeSequence:
+    """Test non-standard amino acid mapping."""
+
+    def test_standard_sequence_unchanged(self):
+        assert sanitize_sequence("ACDEFGHIK") == "ACDEFGHIK"
+
+    def test_maps_x_to_g(self):
+        assert sanitize_sequence("AXC") == "AGC"
+
+    def test_maps_all_non_standard(self):
+        result = sanitize_sequence("XBZUO")
+        assert result == "GDECK"
+
+    def test_empty_sequence(self):
+        assert sanitize_sequence("") == ""
+
+
+class TestCalculateMolecularWeight:
+    """Test molecular weight estimation from sequence."""
+
+    def test_known_single_residue(self):
+        # Single amino acid: just the AA weight (no water loss for length 1)
+        mw = calculate_molecular_weight_from_sequence("A")
+        # Should be ~89.09 (no peptide bonds to subtract)
+        assert abs(mw - 89.09) < 0.01
+
+    def test_longer_sequence(self):
+        mw = calculate_molecular_weight_from_sequence("ACDEF")
+        assert mw > 0
+        assert isinstance(mw, float)
+
+    def test_empty_sequence(self):
+        assert calculate_molecular_weight_from_sequence("") == 0.0
+
+    def test_non_standard_uses_default(self):
+        # 'J' is not in AMINO_ACID_MW, should use default 110.0
+        mw = calculate_molecular_weight_from_sequence("J")
+        assert abs(mw - 110.0) < 0.01
+
+
+class TestCalculateBasicProperties:
+    """Test basic property fallback computation."""
+
+    def test_returns_required_keys(self):
+        props = calculate_basic_properties("ACDEF")
+        assert "molecular_weight" in props
+        assert "sequence_length" in props
+        assert "calculation_method" in props
+        assert props["calculation_method"] == "Basic-Estimated"
+
+    def test_sequence_length_correct(self):
+        props = calculate_basic_properties("ACDEF")
+        assert props["sequence_length"] == 5
+
 
 class TestComputeRDKitProperties:
-    """Unit tests for compute_rdkit_properties function."""
+    """Test RDKit property computation."""
 
-    @pytest.fixture
-    def mock_rdkit(self):
-        """Mock RDKit modules."""
-        mock_chem = MagicMock()
-        mock_descriptors = MagicMock()
+    def test_returns_none_when_unavailable(self):
+        with patch("dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", False):
+            assert compute_rdkit_properties("ACDEF") is None
 
+    def test_returns_none_for_empty_sequence(self):
+        with patch("dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True):
+            assert compute_rdkit_properties("") is None
+
+    def test_returns_none_for_non_standard_aas(self):
+        with patch("dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True):
+            assert compute_rdkit_properties("ACX123") is None
+
+    def test_valid_sequence_with_mocked_rdkit(self):
         mock_mol = MagicMock()
-        mock_mol.FromSmiles.return_value = MagicMock()
-        mock_chem.MolFromSmiles.return_value = mock_mol
+        mock_chem = MagicMock()
+        mock_chem.MolFromSequence.return_value = mock_mol
         mock_chem.AddHs.return_value = mock_mol
+        mock_descriptors = MagicMock()
+        mock_descriptors.ExactMolWt.return_value = 1000.0
+        mock_descriptors.MolLogP.return_value = -1.5
+        mock_descriptors.TPSA.return_value = 300.0
+        mock_descriptors.NumHDonors.return_value = 5
+        mock_descriptors.NumHAcceptors.return_value = 10
 
-        mock_descriptors.ExactMolWt.return_value = 1234.56
-        mock_descriptors.MolLogP.return_value = 1.23
-        mock_descriptors.TPSA.return_value = 456.78
-        mock_descriptors.NumHDonors.return_value = 8
-        mock_descriptors.NumHAcceptors.return_value = 15
-
-        with patch.dict(
-            "sys.modules",
-            {
-                "rdkit": MagicMock(),
-                "rdkit.Chem": mock_chem,
-                "rdkit.Chem.Descriptors": mock_descriptors,
-            },
-        ):
-            yield {"chem": mock_chem, "descriptors": mock_descriptors}
-
-    def test_compute_rdkit_properties_valid_sequence(self, mock_rdkit):
-        """Test RDKit property computation for valid peptide sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_rdkit_properties,
-        )
-
-        sequence = "ACDEFGHIK"
-        props = compute_rdkit_properties(sequence)
+        import dagster_pipelines.assets.property_calculators as pc
+        orig_rdkit = pc.RDKIT_AVAILABLE
+        orig_chem = getattr(pc, 'Chem', None)
+        orig_desc = getattr(pc, 'Descriptors', None)
+        try:
+            pc.RDKIT_AVAILABLE = True
+            pc.Chem = mock_chem
+            pc.Descriptors = mock_descriptors
+            props = pc.compute_rdkit_properties("ACDEFGHIK")
+        finally:
+            pc.RDKIT_AVAILABLE = orig_rdkit
+            if orig_chem is not None:
+                pc.Chem = orig_chem
+            elif hasattr(pc, 'Chem'):
+                delattr(pc, 'Chem')
+            if orig_desc is not None:
+                pc.Descriptors = orig_desc
+            elif hasattr(pc, 'Descriptors'):
+                delattr(pc, 'Descriptors')
 
         assert props is not None
-        assert "molecular_weight" in props
-        assert "logp" in props
-        assert "tpsa" in props
-        assert "num_h_donors" in props
-        assert "num_h_acceptors" in props
-        assert isinstance(props["molecular_weight"], float)
-        assert isinstance(props["logp"], float)
-
-    def test_compute_rdkit_properties_invalid_sequence(self, mock_rdkit):
-        """Test RDKit property computation fails for invalid sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_rdkit_properties,
-        )
-
-        sequence = "ACX123"  # Contains invalid characters
-
-        props = compute_rdkit_properties(sequence)
-
-        # Should return None for invalid sequences
-        assert props is None
-
-    def test_compute_rdkit_properties_empty_sequence(self, mock_rdkit):
-        """Test RDKit property computation with empty sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_rdkit_properties,
-        )
-
-        props = compute_rdkit_properties("")
-
-        assert props is None
-
-    def test_compute_rdkit_properties_rdkit_unavailable(self):
-        """Test graceful handling when RDKit is not available."""
-        with patch(
-            "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", False
-        ):
-            from dagster_pipelines.assets.property_calculators import (
-                compute_rdkit_properties,
-            )
-
-            props = compute_rdkit_properties("ACDEFGHIK")
-
-            assert props is None
+        assert props["molecular_weight"] == 1000.0
+        assert props["logp"] == -1.5
+        assert props["calculation_method"] == "RDKit"
 
 
 class TestComputeBioPythonProperties:
-    """Unit tests for compute_biopython_properties function."""
+    """Test BioPython property computation."""
 
-    @pytest.fixture
-    def mock_biopython(self):
-        """Mock BioPython modules."""
-        mock_protein_analysis = MagicMock()
-
-        mock_protein_analysis.isoelectric_point.return_value = 8.45
-        mock_protein_analysis.gravy.return_value = -0.623
-
-        with patch.dict(
-            "sys.modules",
-            {
-                "Bio": MagicMock(),
-                "Bio.SeqUtils": MagicMock(),
-                "Bio.SeqUtils.ProtParam": MagicMock(
-                    **{"ProteinAnalysis.return_value": mock_protein_analysis}
-                ),
-            },
-        ):
-            yield {"analysis": mock_protein_analysis}
-
-    def test_compute_biopython_properties_valid_sequence(self, mock_biopython):
-        """Test BioPython property computation for valid peptide sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_biopython_properties,
-        )
-
-        sequence = "ACDEFGHIKLMNPQRSTVWY"
-        props = compute_biopython_properties(sequence)
-
+    @pytest.mark.skipif(not BIOPYTHON_AVAILABLE, reason="BioPython not installed")
+    def test_valid_standard_sequence(self):
+        props = compute_biopython_properties("ACDEFGHIKLMNPQRSTVWY")
         assert props is not None
         assert "isoelectric_point" in props
         assert "hydrophobicity" in props
+        assert "instability_index" in props
+        assert "aromaticity" in props
+        assert "charge_at_ph7" in props
+
+    def test_empty_sequence_returns_none(self):
+        assert compute_biopython_properties("") is None
+
+    def test_returns_none_when_unavailable(self):
+        with patch("dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE", False):
+            assert compute_biopython_properties("ACDEF") is None
+
+    @pytest.mark.skipif(not BIOPYTHON_AVAILABLE, reason="BioPython not installed")
+    def test_short_sequence_still_computes(self):
+        props = compute_biopython_properties("ACDEF")
+        assert props is not None
         assert isinstance(props["isoelectric_point"], float)
-        assert isinstance(props["hydrophobicity"], float)
-
-    def test_compute_biopython_properties_invalid_sequence(self, mock_biopython):
-        """Test BioPython property computation fails for invalid sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_biopython_properties,
-        )
-
-        sequence = "ACX123"  # Contains invalid characters
-
-        props = compute_biopython_properties(sequence)
-
-        # Should return None for invalid sequences
-        assert props is None
-
-    def test_compute_biopython_properties_empty_sequence(self, mock_biopython):
-        """Test BioPython property computation with empty sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_biopython_properties,
-        )
-
-        props = compute_biopython_properties("")
-
-        assert props is None
-
-    def test_compute_biopython_properties_short_sequence(self, mock_biopython):
-        """Test BioPython property computation warning for short sequence."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_biopython_properties,
-        )
-
-        sequence = "ACDEF"  # Short sequence (<10)
-
-        with patch(
-            "dagster_pipelines.assets.property_calculators.logger"
-        ) as mock_logger:
-            props = compute_biopython_properties(sequence)
-
-            # Should still compute properties for short sequence but log warning
-            mock_logger.warning.assert_called()
-            assert props is not None
-
-    def test_compute_biopython_properties_unavailable(self):
-        """Test graceful handling when BioPython is not available."""
-        with patch(
-            "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE", False
-        ):
-            from dagster_pipelines.assets.property_calculators import (
-                compute_biopython_properties,
-            )
-
-            props = compute_biopython_properties("ACDEFGHIK")
-
-            assert props is None
 
 
 class TestComputeAllProperties:
-    """Unit tests for compute_all_properties function."""
+    """Test combined property computation."""
 
-    def test_compute_all_properties_success(self):
-        """Test computing all properties for valid sequence."""
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE",
-                True,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_rdkit_properties"
-            ) as mock_rdkit,
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_biopython_properties"
-            ) as mock_biopython,
-        ):
-            mock_rdkit.return_value = {
-                "molecular_weight": 1234.56,
-                "logp": 1.23,
-                "tpsa": 456.78,
-                "num_h_donors": 8,
-                "num_h_acceptors": 15,
-            }
-            mock_biopython.return_value = {
-                "isoelectric_point": 8.45,
-                "hydrophobicity": -0.623,
-            }
+    def test_none_when_both_fail(self):
+        with patch("dagster_pipelines.assets.property_calculators.compute_rdkit_properties", return_value=None), \
+             patch("dagster_pipelines.assets.property_calculators.compute_biopython_properties", return_value=None):
+            assert compute_all_properties("INVALID") is None
 
-            from dagster_pipelines.assets.property_calculators import (
-                compute_all_properties,
-            )
+    def test_merges_both_results(self):
+        rdkit = {"molecular_weight": 1000.0, "logp": -1.5}
+        bio = {"isoelectric_point": 8.0, "hydrophobicity": -0.5}
+        with patch("dagster_pipelines.assets.property_calculators.compute_rdkit_properties", return_value=rdkit), \
+             patch("dagster_pipelines.assets.property_calculators.compute_biopython_properties", return_value=bio):
+            props = compute_all_properties("ACDEF")
+        assert props["molecular_weight"] == 1000.0
+        assert props["isoelectric_point"] == 8.0
 
-            props = compute_all_properties("ACDEFGHIK")
+    def test_rdkit_only(self):
+        rdkit = {"logp": -1.5}
+        with patch("dagster_pipelines.assets.property_calculators.compute_rdkit_properties", return_value=rdkit), \
+             patch("dagster_pipelines.assets.property_calculators.compute_biopython_properties", return_value=None):
+            props = compute_all_properties("ACDEF")
+        assert props == {"logp": -1.5}
 
-            assert props is not None
-            assert len(props) == 7  # 5 RDKit + 2 BioPython properties
-            assert "molecular_weight" in props
-            assert "isoelectric_point" in props
-
-    def test_compute_all_properties_rdkit_only(self):
-        """Test computing properties when only RDKit succeeds."""
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE",
-                True,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_rdkit_properties"
-            ) as mock_rdkit,
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_biopython_properties"
-            ) as mock_biopython,
-        ):
-            mock_rdkit.return_value = {
-                "molecular_weight": 1234.56,
-                "logp": 1.23,
-                "tpsa": 456.78,
-                "num_h_donors": 8,
-                "num_h_acceptors": 15,
-            }
-            mock_biopython.return_value = None
-
-            from dagster_pipelines.assets.property_calculators import (
-                compute_all_properties,
-            )
-
-            props = compute_all_properties("ACDEFGHIK")
-
-            assert props is not None
-            assert len(props) == 5  # Only RDKit properties
-
-    def test_compute_all_properties_biopython_only(self):
-        """Test computing properties when only BioPython succeeds."""
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE",
-                True,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_rdkit_properties"
-            ) as mock_rdkit,
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_biopython_properties"
-            ) as mock_biopython,
-        ):
-            mock_rdkit.return_value = None
-            mock_biopython.return_value = {
-                "isoelectric_point": 8.45,
-                "hydrophobicity": -0.623,
-            }
-
-            from dagster_pipelines.assets.property_calculators import (
-                compute_all_properties,
-            )
-
-            props = compute_all_properties("ACDEFGHIK")
-
-            assert props is not None
-            assert len(props) == 2  # Only BioPython properties
-
-    def test_compute_all_properties_none_fail(self):
-        """Test computing properties when both methods fail."""
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE",
-                True,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_rdkit_properties",
-                return_value=None,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_biopython_properties",
-                return_value=None,
-            ),
-        ):
-            from dagster_pipelines.assets.property_calculators import (
-                compute_all_properties,
-            )
-
-            props = compute_all_properties("INVALID")
-
-            assert props is None
+    def test_biopython_only(self):
+        bio = {"isoelectric_point": 8.0}
+        with patch("dagster_pipelines.assets.property_calculators.compute_rdkit_properties", return_value=None), \
+             patch("dagster_pipelines.assets.property_calculators.compute_biopython_properties", return_value=bio):
+            props = compute_all_properties("ACDEF")
+        assert props == {"isoelectric_point": 8.0}
 
 
-class TestAminoAcidValidation:
-    def test_compute_properties_lowercase_sequence(self):
-        """Test property computation handles lowercase sequences."""
-        from dagster_pipelines.assets.property_calculators import (
-            compute_rdkit_properties,
-        )
+class TestComputePropertiesWithFallbacks:
+    """Test the fallback strategy chain."""
 
-        seq_lower = "acdefghik"
+    def test_empty_sequence_returns_basic(self):
+        props = compute_properties_with_fallbacks("")
+        assert props["calculation_method"] == "Empty-Sequence"
+        assert "molecular_weight" in props
 
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.RDKIT_AVAILABLE", True
-            ),
-            patch("dagster.assets.property_calculators"),
-        ):
-            props = compute_rdkit_properties(seq_lower)
-            assert props is None  # Should fail validation for lowercase
+    @pytest.mark.skipif(not BIOPYTHON_AVAILABLE, reason="BioPython not installed")
+    def test_standard_sequence_uses_biopython(self):
+        # RDKit not available in test env, but BioPython is
+        props = compute_properties_with_fallbacks("ACDEFGHIKLMNPQRSTVWY")
+        assert props is not None
+        assert "BioPython" in props["calculation_method"]
+        assert "isoelectric_point" in props
 
-    def test_compute_properties_with_whitespace(self):
-        """Test property computation handles whitespace in sequences."""
-        # Sequence with whitespace should be cleaned and computed
-        sequence = "ACDEFGHIK\nLMNPQRSTVWY\tC"
+    @pytest.mark.skipif(not BIOPYTHON_AVAILABLE, reason="BioPython not installed")
+    def test_non_standard_sequence_sanitized(self):
+        props = compute_properties_with_fallbacks("ACXEFGHIK")
+        assert props is not None
+        # Should still have BioPython results
+        assert "calculation_method" in props
 
-        with (
-            patch(
-                "dagster_pipelines.assets.property_calculators.BIOPYTHON_AVAILABLE",
-                True,
-            ),
-            patch(
-                "dagster_pipelines.assets.property_calculators.compute_biopython_properties"
-            ) as mock_compute,
-        ):
-            # The function should validate before computation
-            mock_compute.return_value = {
-                "isoelectric_point": 8.45,
-                "hydrophobicity": -0.623,
-            }
-            props = mock_compute(sequence.replace("\n", "").replace("\t", ""))
-
-            assert props is not None
+    def test_all_fail_returns_basic_estimated(self):
+        with patch("dagster_pipelines.assets.property_calculators.compute_rdkit_properties", return_value=None), \
+             patch("dagster_pipelines.assets.property_calculators.compute_biopython_properties", return_value=None):
+            props = compute_properties_with_fallbacks("ACDEF")
+        assert props["calculation_method"] == "Basic-Estimated"
+        assert "molecular_weight" in props
