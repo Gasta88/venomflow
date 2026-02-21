@@ -4,7 +4,9 @@ Computes physicochemical properties for peptides using RDKit and BioPython.
 """
 
 import logging
-from typing import Any, Dict, List
+import hashlib
+from typing import Any, Dict, List, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -20,6 +22,58 @@ logger = logging.getLogger(__name__)
 
 
 BATCH_SIZE = 50
+MAX_WORKERS = 4
+
+
+def sequence_hash_cache_key(func):
+    """Decorator to cache function results by sequence hash."""
+    cache = {}
+
+    def wrapper(sequence: str) -> Dict[str, Any]:
+        seq_hash = hashlib.sha256(sequence.encode()).hexdigest()
+        if seq_hash not in cache:
+            cache[seq_hash] = func(sequence)
+        return cache[seq_hash]
+
+    return wrapper
+
+
+@sequence_hash_cache_key
+def compute_properties_cached(sequence: str) -> Dict[str, Any]:
+    """Compute properties with sequence hash caching."""
+    return compute_properties_with_fallbacks(sequence)
+
+
+def process_single_peptide(row: Tuple) -> Dict[str, Any]:
+    """Process a single peptide for parallel execution.
+
+    Args:
+        row: Tuple of (peptide_id, peptide_name, sequence, sequence_length)
+
+    Returns:
+        Dictionary with property_record for database insertion
+    """
+    peptide_id, peptide_name, sequence, sequence_length = row
+
+    props = compute_properties_cached(sequence)
+    calculation_method = props.get("calculation_method", "Unknown")
+
+    return {
+        "peptide_id": peptide_id,
+        "name": peptide_name,
+        "sequence": sequence,
+        "molecular_weight": props.get("molecular_weight"),  # For peptides table update
+        "logp": props.get("logp"),
+        "tpsa": props.get("tpsa"),
+        "num_h_donors": props.get("num_h_donors"),
+        "num_h_acceptors": props.get("num_h_acceptors"),
+        "isoelectric_point": props.get("isoelectric_point"),
+        "hydrophobicity": props.get("hydrophobicity"),
+        "instability_index": props.get("instability_index"),
+        "aromaticity": props.get("aromaticity"),
+        "charge_at_ph7": props.get("charge_at_ph7"),
+        "calculation_method": calculation_method,
+    }
 
 
 @asset(
@@ -30,9 +84,10 @@ BATCH_SIZE = 50
 
     Properties computed:
     - RDKit: molecular_weight, logp, tpsa, num_h_donors, num_h_acceptors
-    - BioPython: isoelectric_point (pI), hydrophobicity (GRAVY)
+    - BioPython: isoelectric_point (pI), hydrophobicity (GRAVY), instability_index, aromaticity, charge_at_ph7
 
     Results are stored in the PostgreSQL 'properties' table.
+    molecular_weight is also updated in the peptides table.
     Properties are only computed for peptides that don't already have properties.
     """,
 )
@@ -44,7 +99,7 @@ def compute_peptide_properties(
     Dagster asset for computing peptide physicochemical properties.
 
     Fetches peptides without properties from the database, computes properties
-    using RDKit and BioPython, and inserts results in batches of 50.
+    using RDKit and BioPython, and inserts results in batches of 52.
     Logs progress for each batch and returns metadata with statistics.
 
     Args:
@@ -66,11 +121,15 @@ def compute_peptide_properties(
     peptides_processed = 0
     properties_computed = 0
     error_count = 0
+    molecular_weights_updated = 0
 
     logp_values = []
     tpsa_values = []
     isoelectric_point_values = []
     hydrophobicity_values = []
+    instability_index_values = []
+    aromaticity_values = []
+    charge_at_ph7_values = []
 
     method_counts = {}
 
@@ -84,7 +143,7 @@ def compute_peptide_properties(
                 SELECT peptide_id FROM properties
             )
             ORDER BY sequence_length ASC
-            LIMIT 1000
+            LIMIT 50
         """)
 
         result = session.execute(query)
@@ -116,57 +175,82 @@ def compute_peptide_properties(
                 f"Processing batch {batch_num}/{total_batches} ({len(batch)} peptides)"
             )
 
-            for row in batch:
-                peptide_id, peptide_name, sequence, sequence_length = row
+            batch_properties = []
 
-                peptides_processed += 1
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                future_to_row = {
+                    executor.submit(process_single_peptide, row): row for row in batch
+                }
 
-                context.log.debug(
-                    f"Computing properties for peptide {peptide_name} (ID: {peptide_id})"
+                for future in as_completed(future_to_row):
+                    row = future_to_row[future]
+                    try:
+                        property_record = future.result()
+                        batch_properties.append(property_record)
+                        peptides_processed += 1
+
+                        if peptides_processed % 10 == 0:
+                            context.log.info(
+                                f"Processed {peptides_processed}/{total_peptides} peptides"
+                            )
+
+                    except Exception as e:
+                        error_count += 1
+                        context.log.error(f"Error processing peptide row: {e}")
+                        continue
+
+            for property_record in batch_properties:
+                properties_list.append(property_record)
+                calculation_method = property_record.get(
+                    "calculation_method", "Unknown"
                 )
-
-                props = compute_properties_with_fallbacks(sequence)
-                calculation_method = props.get("calculation_method", "Unknown")
 
                 method_counts[calculation_method] = (
                     method_counts.get(calculation_method, 0) + 1
                 )
 
-                property_record = {
-                    "peptide_id": peptide_id,
-                    "logp": props.get("logp"),
-                    "tpsa": props.get("tpsa"),
-                    "num_h_donors": props.get("num_h_donors"),
-                    "num_h_acceptors": props.get("num_h_acceptors"),
-                    "isoelectric_point": props.get("isoelectric_point"),
-                    "hydrophobicity": props.get("hydrophobicity"),
-                    "calculation_method": calculation_method,
-                }
-
-                properties_list.append(property_record)
-
-                if "logp" in props and props["logp"] is not None:
-                    logp_values.append(props["logp"])
-                if "tpsa" in props and props["tpsa"] is not None:
-                    tpsa_values.append(props["tpsa"])
+                if "logp" in property_record and property_record["logp"] is not None:
+                    logp_values.append(property_record["logp"])
+                if "tpsa" in property_record and property_record["tpsa"] is not None:
+                    tpsa_values.append(property_record["tpsa"])
                 if (
-                    "isoelectric_point" in props
-                    and props["isoelectric_point"] is not None
+                    "isoelectric_point" in property_record
+                    and property_record["isoelectric_point"] is not None
                 ):
-                    isoelectric_point_values.append(props["isoelectric_point"])
-                if "hydrophobicity" in props and props["hydrophobicity"] is not None:
-                    hydrophobicity_values.append(props["hydrophobicity"])
-
-                if peptides_processed % 10 == 0:
-                    context.log.info(
-                        f"Processed {peptides_processed}/{total_peptides} peptides"
+                    isoelectric_point_values.append(
+                        property_record["isoelectric_point"]
                     )
+                if (
+                    "hydrophobicity" in property_record
+                    and property_record["hydrophobicity"] is not None
+                ):
+                    hydrophobicity_values.append(property_record["hydrophobicity"])
+                if (
+                    "instability_index" in property_record
+                    and property_record["instability_index"] is not None
+                ):
+                    instability_index_values.append(
+                        property_record["instability_index"]
+                    )
+                if (
+                    "aromaticity" in property_record
+                    and property_record["aromaticity"] is not None
+                ):
+                    aromaticity_values.append(property_record["aromaticity"])
+                if (
+                    "charge_at_ph7" in property_record
+                    and property_record["charge_at_ph7"] is not None
+                ):
+                    charge_at_ph7_values.append(property_record["charge_at_ph7"])
 
             context.log.info(
                 f"Computed properties for {len(batch)} peptides in batch {batch_num}"
             )
 
             if properties_list:
+                molecular_weights_updated += _update_peptide_molecular_weight(
+                    session, properties_list
+                )
                 insert_result = _batch_insert_properties(session, properties_list)
                 properties_computed += insert_result
                 properties_list.clear()
@@ -174,6 +258,9 @@ def compute_peptide_properties(
         remaining_properties = len(properties_list)
         if remaining_properties > 0:
             context.log.info(f"Inserting remaining {remaining_properties} properties")
+            molecular_weights_updated += _update_peptide_molecular_weight(
+                session, properties_list
+            )
             insert_result = _batch_insert_properties(session, properties_list)
             properties_computed += insert_result
 
@@ -198,6 +285,7 @@ def compute_peptide_properties(
             f"Successfully computed properties for {properties_computed} peptides"
         )
         context.log.info(f"Errors: {error_count}")
+        context.log.info(f"Molecular weights updated: {molecular_weights_updated}")
         context.log.info(f"Calculation methods used: {method_counts}")
         context.log.info(f"Average LogP: {avg_logp:.3f}")
         context.log.info(f"Average TPSA: {avg_tpsa:.2f} Å²")
@@ -208,6 +296,7 @@ def compute_peptide_properties(
             "peptides_processed": MetadataValue.int(peptides_processed),
             "properties_computed": MetadataValue.int(properties_computed),
             "error_count": MetadataValue.int(error_count),
+            "molecular_weights_updated": MetadataValue.int(molecular_weights_updated),
             "avg_logp": MetadataValue.float(avg_logp),
             "avg_tpsa": MetadataValue.float(avg_tpsa),
             "avg_isoelectric_point": MetadataValue.float(avg_isoelectric_point),
@@ -243,26 +332,30 @@ def _batch_insert_properties(
     insert_query = text("""
         INSERT INTO properties (
             peptide_id,
-            molecular_weight,
             logp,
             tpsa,
             num_h_donors,
             num_h_acceptors,
             isoelectric_point,
             hydrophobicity,
+            instability_index,
+            aromaticity,
+            charge_at_ph7,
             calculation_method,
             calculated_at,
             created_at,
             updated_at
         ) VALUES (
             :peptide_id,
-            :molecular_weight,
             :logp,
             :tpsa,
             :num_h_donors,
             :num_h_acceptors,
             :isoelectric_point,
             :hydrophobicity,
+            :instability_index,
+            :aromaticity,
+            :charge_at_ph7,
             :calculation_method,
             NOW(),
             NOW(),
@@ -270,13 +363,15 @@ def _batch_insert_properties(
         )
         ON CONFLICT (peptide_id)
         DO UPDATE SET
-            molecular_weight = EXCLUDED.molecular_weight,
             logp = EXCLUDED.logp,
             tpsa = EXCLUDED.tpsa,
             num_h_donors = EXCLUDED.num_h_donors,
             num_h_acceptors = EXCLUDED.num_h_acceptors,
             isoelectric_point = EXCLUDED.isoelectric_point,
             hydrophobicity = EXCLUDED.hydrophobicity,
+            instability_index = EXCLUDED.instability_index,
+            aromaticity = EXCLUDED.aromaticity,
+            charge_at_ph7 = EXCLUDED.charge_at_ph7,
             calculation_method = EXCLUDED.calculation_method,
             calculated_at = NOW(),
             updated_at = NOW()
@@ -285,4 +380,39 @@ def _batch_insert_properties(
 
     result = session.execute(insert_query, properties_list)
 
+    return result.rowcount
+
+
+def _update_peptide_molecular_weight(
+    session: Session, properties_list: List[Dict[str, Any]]
+) -> int:
+    """
+    Update molecular_weight in peptides table for peptides that have properties.
+
+    Args:
+        session: SQLAlchemy session
+        properties_list: List of property dictionaries (includes peptide_id and molecular_weight)
+
+    Returns:
+        Number of peptides updated
+    """
+    if not properties_list:
+        return 0
+
+    peptide_weights = [
+        {"peptide_id": p["peptide_id"], "molecular_weight": p["molecular_weight"]}
+        for p in properties_list
+        if p.get("peptide_id") and p.get("molecular_weight") is not None
+    ]
+
+    if not peptide_weights:
+        return 0
+
+    update_query = text("""
+        UPDATE peptides
+        SET molecular_weight = :molecular_weight
+        WHERE id = :peptide_id
+    """)
+
+    result = session.execute(update_query, peptide_weights)
     return result.rowcount

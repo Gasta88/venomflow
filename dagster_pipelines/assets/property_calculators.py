@@ -162,10 +162,11 @@ def compute_rdkit_properties(sequence: str) -> Optional[Dict[str, Any]]:
         mol = Chem.MolFromSequence(sequence)
 
         if mol is None:
-            logger.warning(f"RDKit MolFromSequence failed to parse sequence: {sequence}")
+            logger.warning(
+                f"RDKit MolFromSequence failed to parse sequence: {sequence}"
+            )
             return None
 
-        AllChem.Compute2DCoords(mol)
         mol = Chem.AddHs(mol)
 
         properties = {
@@ -233,11 +234,20 @@ def compute_biopython_properties(sequence: str) -> Optional[Dict[str, Any]]:
 
         isoelectric_point = prot_analysis.isoelectric_point()
         hydrophobicity = prot_analysis.gravy()
+        instability_index = prot_analysis.instability_index()
+        aromaticity = prot_analysis.aromaticity()
 
         properties = {
             "isoelectric_point": round(isoelectric_point, 2),
             "hydrophobicity": round(hydrophobicity, 3),
+            "instability_index": round(instability_index, 2),
+            "aromaticity": round(aromaticity, 4),
         }
+
+        net_charge_at_ph7 = prot_analysis.charge_at_ph(7.0)
+        properties["charge_at_ph7"] = (
+            round(net_charge_at_ph7, 3) if net_charge_at_ph7 is not None else None
+        )
 
         logger.debug(
             f"Computed BioPython properties for sequence length {len(sequence)}"
@@ -281,16 +291,15 @@ def compute_properties_with_fallbacks(sequence: str) -> Dict[str, Any]:
     """Compute peptide properties using fallback strategies for maximum compatibility.
 
     Tries multiple computation strategies in order:
-    1. RDKit MolFromSequence (best) - for sequences with only standard AAs
-    2. Sanitized RDKit - for sequences with non-standard AAs that can be mapped
-    3. BioPython - protein biochemical properties (pI, GRAVY)
-    4. Basic estimation - always available
+    1. RDKit MolFromSequence (best) + BioPython for protein properties
+    2. Sanitized RDKit + BioPython for non-standard AAs
+    3. BioPython only for protein biochemical properties
 
     Args:
         sequence: Peptide sequence string (may contain non-standard amino acids).
 
     Returns:
-        Dictionary with computed properties including calculation_method.
+        Dictionary with computed properties including calculation_method and molecular_weight.
 
     Example:
         >>> props = compute_properties_with_fallbacks("ACDEFGHIK")
@@ -298,34 +307,45 @@ def compute_properties_with_fallbacks(sequence: str) -> Dict[str, Any]:
     """
     if not sequence:
         logger.warning("Empty sequence provided")
-        return {"molecular_weight": 0, "calculation_method": "Empty-Sequence"}
+        result = {
+            "molecular_weight": calculate_molecular_weight_from_sequence(sequence),
+            "calculation_method": "Empty-Sequence",
+        }
+        return result
+
+    all_props: Dict[str, Any] = {}
+    method_parts = []
 
     # Strategy 1: Try RDKit with standard amino acids only
     if set(sequence).issubset(STANDARD_AMINO_ACIDS):
         rdkit_result = compute_rdkit_properties(sequence)
         if rdkit_result:
-            return rdkit_result
+            all_props.update(rdkit_result)
+            method_parts.append("RDKit")
 
-    # Strategy 2: Sanitize non-standard amino acids and retry RDKit
+    # Strategy 2: Sanitized non-standard amino acids and retry RDKit
     sanitized = sanitize_sequence(sequence)
-    if set(sanitized).issubset(STANDARD_AMINO_ACIDS):
+    if set(sanitized).issubset(STANDARD_AMINO_ACIDS) and not all_props:
         rdkit_result = compute_rdkit_properties(sanitized)
         if rdkit_result:
-            rdkit_result["calculation_method"] = "RDKit-Estimated"
-            return rdkit_result
+            all_props.update(rdkit_result)
+            method_parts.append("RDKit-Estimated")
 
-    # Strategy 3: Fall back to BioPython (works with non-standard AAs)
+    # Strategy 3: Add BioPython protein biochemical properties
     biopython_result = compute_biopython_properties(sequence)
     if biopython_result:
-        biopython_result["calculation_method"] = "BioPython"
-        biopython_result["molecular_weight"] = calculate_molecular_weight_from_sequence(
-            sequence
-        )
-        return biopython_result
+        all_props.update(biopython_result)
+        method_parts.append("BioPython")
 
-    # Strategy 4: Return basic properties (always available)
-    return {
-        "molecular_weight": calculate_molecular_weight_from_sequence(sequence),
-        "sequence_length": len(sequence),
-        "calculation_method": "Basic-Estimated",
-    }
+    if not all_props:
+        logger.warning("Failed to compute any properties for sequence")
+        return {
+            "molecular_weight": calculate_molecular_weight_from_sequence(sequence),
+            "calculation_method": "Basic-Estimated",
+        }
+
+    all_props["calculation_method"] = (
+        "+".join(method_parts) if len(method_parts) > 1 else method_parts[0]
+    )
+
+    return all_props
