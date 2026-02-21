@@ -32,6 +32,9 @@ elasticsearch==8.11.0
 # Environment Variables
 python-dotenv==1.0.0
 
+# Monitoring
+prometheus-fastapi-instrumentator==7.0.0
+
 # Logging
 structlog==24.1.0
 

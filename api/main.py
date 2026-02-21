@@ -14,6 +14,7 @@ from typing import Any, Dict
 import strawberry
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from strawberry.fastapi import GraphQLRouter
 
 from schema.queries import Query
@@ -85,6 +86,13 @@ graphql_app = GraphQLRouter(
 app.include_router(graphql_app, prefix="/graphql")
 
 # =============================================================================
+# PROMETHEUS METRICS INSTRUMENTATION
+# =============================================================================
+
+# Expose Prometheus metrics at /metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", tags=["Monitoring"])
+
+# =============================================================================
 # APPLICATION STARTUP
 # =============================================================================
 
@@ -95,6 +103,7 @@ async def startup_event() -> None:
     print("VenomFlow API starting...")
     print("GraphQL Playground available at: http://localhost:8000/graphql")
     print("Health check available at: http://localhost:8000/health")
+    print("Prometheus metrics available at: http://localhost:8000/metrics")
 
 
 @app.on_event("shutdown")
