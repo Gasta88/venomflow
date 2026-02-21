@@ -149,8 +149,8 @@ def venom_peptides_uniprot(
     """
     BASE_URL = "https://rest.uniprot.org/uniprotkb/search"
     QUERY = "(venom OR toxin) AND reviewed:true"
-    PAGE_SIZE = 50
-    MAX_PAGES = 2
+    PAGE_SIZE = 5
+    MAX_PAGES = 1
     MIN_SLEEP = 0.1
     MAX_SLEEP = 0.15
 

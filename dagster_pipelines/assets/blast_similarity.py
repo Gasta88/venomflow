@@ -83,9 +83,11 @@ def create_alignment_database(fasta_path: Path, db_path: Path) -> bool:
 
 def run_alignment(
     query_sequence: str,
+    query_id: str,
     target_sequences: List[Tuple[str, str, str]],
     score_threshold: float = ALIGNMENT_SCORE_THRESHOLD,
     max_target_seqs: int = 100,
+    start_index: int = 0,
 ) -> List[Dict[str, Any]]:
     """
     Perform sequence alignment using BioPython's PairwiseAligner.
@@ -94,9 +96,11 @@ def run_alignment(
 
     Args:
         query_sequence: Query peptide sequence
+        query_id: Query peptide ID
         target_sequences: List of tuples (peptide_id, name, sequence)
         score_threshold: Normalized similarity threshold (0.0-1.0)
         max_target_seqs: Maximum number of top hits to return
+        start_index: Index in target_sequences to start from (avoid duplicate comparisons)
 
     Returns:
         List of alignment results with similarity scores
@@ -104,8 +108,10 @@ def run_alignment(
     aligner_instance = get_aligner()
     results = []
 
-    for target_id, target_name, target_seq in target_sequences:
-        if target_id is None or target_id == query_sequence:
+    for target_id, target_name, target_seq in target_sequences[start_index:]:
+        if target_id is None:
+            continue
+        if target_id == query_id:
             continue
 
         score = aligner_instance.score(query_sequence, target_seq)
@@ -113,15 +119,18 @@ def run_alignment(
         normalized_score: float = score / max_score if max_score > 0 else 0.0
 
         if normalized_score >= score_threshold:
-            results.append({
-                "peptide_id_1": target_id,
-                "similarity_score": normalized_score,
-                "alignment_method": "smith-waterman",
-                "alignment_length": 0,
-                "identities": 0,
-                "gaps": 0,
-                "score": float(score),
-            })
+            clamped_score = max(0.0, min(1.0, normalized_score))
+            results.append(
+                {
+                    "peptide_id_1": target_id,
+                    "similarity_score": clamped_score,
+                    "alignment_method": "smith-waterman",
+                    "alignment_length": 0,
+                    "identities": 0,
+                    "gaps": 0,
+                    "score": float(score),
+                }
+            )
 
         if len(results) >= max_target_seqs:
             break
@@ -245,7 +254,9 @@ def compute_sequence_similarities(
             )
 
         context.log.info("Initializing BioPython PairwiseAligner...")
-        context.log.info("Computing pairwise sequence similarities using Smith-Waterman algorithm...")
+        context.log.info(
+            "Computing pairwise sequence similarities using Smith-Waterman algorithm..."
+        )
 
         for i, (query_id, query_name, query_sequence) in enumerate(peptides_data):
             peptides_processed += 1
@@ -255,14 +266,20 @@ def compute_sequence_similarities(
                     f"Processed {peptides_processed}/{total_peptides} peptides"
                 )
 
-            context.log.debug(f"Aligning {query_name} (ID: {query_id}) against {total_peptides} peptides")
+            context.log.debug(
+                f"Aligning {query_name} (ID: {query_id}) against {total_peptides} peptides"
+            )
 
             try:
                 results = run_alignment(
                     query_sequence=query_sequence,
+                    query_id=query_id,
                     target_sequences=peptides_data,
                     score_threshold=ALIGNMENT_SCORE_THRESHOLD,
-                    max_target_seqs=getattr(settings, 'similarity_max_target_seqs', 100),
+                    max_target_seqs=getattr(
+                        settings, "similarity_max_target_seqs", 100
+                    ),
+                    start_index=i + 1,
                 )
 
                 for result in results:
@@ -366,4 +383,5 @@ def _insert_similarity(session: Session, similarity: Dict[str, Any]) -> bool:
         return False
     except Exception as e:
         logger.error(f"Failed to insert similarity: {e}")
+        session.rollback()
         return False
