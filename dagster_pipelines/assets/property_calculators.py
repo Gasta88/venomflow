@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 try:
     from rdkit import Chem
-    from rdkit.Chem import AllChem, Descriptors
+    from rdkit.Chem import Descriptors
 
     RDKIT_AVAILABLE = True
 except ImportError:

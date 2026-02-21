@@ -13,7 +13,7 @@ Usage:
 
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, validator, PostgresDsn, RedisDsn
+from pydantic import Field, validator
 
 
 class Settings(BaseSettings):

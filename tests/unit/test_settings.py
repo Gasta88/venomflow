@@ -1,10 +1,8 @@
 """Unit tests for shared settings configuration."""
 
-import os
 import pytest
-from unittest.mock import patch
 
-from shared.config.settings import Settings, validate_settings
+from shared.config.settings import Settings
 
 
 class TestSettings:

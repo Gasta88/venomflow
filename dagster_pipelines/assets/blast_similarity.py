@@ -64,23 +64,6 @@ def create_fasta_from_peptides(
             f.write(f"{sequence}\n")
 
 
-def create_alignment_database(fasta_path: Path, db_path: Path) -> bool:
-    """
-    Placeholder function - not needed for BioPython pairwise alignment.
-
-    BioPython performs in-memory pairwise comparisons without needing
-    an indexed database. This function exists for API compatibility.
-
-    Args:
-        fasta_path: Path to FASTA file (unused)
-        db_path: Path to database location (unused)
-
-    Returns:
-        Always True
-    """
-    return True
-
-
 def run_alignment(
     query_sequence: str,
     query_id: str,
@@ -135,22 +118,6 @@ def run_alignment(
         if len(results) >= max_target_seqs:
             break
 
-    return results
-
-
-def parse_alignment_results(
-    results: List[Dict[str, Any]], peptide_id_map: Dict[str, str]
-) -> List[Dict[str, Any]]:
-    """
-    Parse and filter alignment results from BioPython.
-
-    Args:
-        results: List of alignment results from run_alignment
-        peptide_id_map: Mapping fromFASTA header (id|name) to peptide_id string
-
-    Returns:
-        List of similarity records ready for database insertion
-    """
     return results
 
 
