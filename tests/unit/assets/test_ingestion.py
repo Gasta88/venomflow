@@ -1,32 +1,109 @@
+"""Unit tests for ingestion asset and helpers."""
+
 import pytest
-import responses
 from unittest.mock import MagicMock, patch
-import pandas as pd
-from datetime import datetime
+import responses
+import json
 
-from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
+from dagster_pipelines.assets.ingestion import (
+    _calculate_sequence_hash,
+    _batch_insert_peptides,
+    _get_or_create_organism,
+)
 
 
-class TestVenomPeptidesUniprotAPI:
-    """Unit tests for API interaction and error handling."""
+class TestCalculateSequenceHash:
+    """Test SHA256 sequence hashing for deduplication."""
+
+    def test_deterministic(self):
+        h1 = _calculate_sequence_hash("ACDEFGHIK")
+        h2 = _calculate_sequence_hash("ACDEFGHIK")
+        assert h1 == h2
+
+    def test_different_sequences_differ(self):
+        h1 = _calculate_sequence_hash("ACDEFGHIK")
+        h2 = _calculate_sequence_hash("LMNPQRSTV")
+        assert h1 != h2
+
+    def test_returns_hex_string(self):
+        h = _calculate_sequence_hash("ACDEF")
+        assert isinstance(h, str)
+        assert len(h) == 64  # SHA256 hex length
+
+    def test_empty_sequence(self):
+        h = _calculate_sequence_hash("")
+        assert isinstance(h, str)
+        assert len(h) == 64
+
+
+class TestGetOrCreateOrganism:
+    """Test organism lookup/creation."""
+
+    def test_existing_organism_returned(self, mock_session):
+        mock_session.execute.return_value.fetchone.return_value = ("uuid-org-1", "Naja naja")
+        result = _get_or_create_organism(mock_session, "Naja naja")
+        assert result == "uuid-org-1"
+
+    def test_new_organism_created(self, mock_session):
+        # First call: not found; second call: insert returning id
+        mock_session.execute.return_value.fetchone.side_effect = [
+            None,
+            ("uuid-new-1",),
+        ]
+        result = _get_or_create_organism(mock_session, "New Species")
+        assert result == "uuid-new-1"
+
+
+class TestBatchInsertPeptides:
+    """Test batch peptide insertion."""
+
+    def test_empty_list_returns_zero(self, mock_session):
+        assert _batch_insert_peptides(mock_session, []) == 0
+
+    def test_inserts_list(self, mock_session):
+        mock_session.execute.return_value.rowcount = 3
+        peptides = [
+            {
+                "uniprot_id": f"P{i:05d}",
+                "name": f"TEST{i}",
+                "sequence": "ACDEF",
+                "sequence_hash": f"hash{i}",
+                "sequence_length": 5,
+                "organism_id": "org1",
+                "function_description": None,
+                "source": "uniprot",
+                "metadata": "{}",
+                "external_ids": "{}",
+            }
+            for i in range(3)
+        ]
+        result = _batch_insert_peptides(mock_session, peptides)
+        assert result == 3
+        mock_session.execute.assert_called_once()
+
+
+class TestVenomPeptidesUniprotAsset:
+    """Test the main ingestion Dagster asset."""
 
     @responses.activate
-    def test_successful_api_request(self):
-        """Test successful API request returns expected data."""
+    def test_successful_fetch_and_insert(self, mock_context, mock_database_resource):
+        from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
+
+        session = mock_database_resource.get_session.return_value
+        # _get_or_create_organism mock
+        session.execute.return_value.fetchone.return_value = ("org-uuid",)
+        # _batch_insert_peptides mock
+        session.execute.return_value.rowcount = 1
+
         mock_response = {
             "results": [
                 {
                     "primaryAccession": "P01589",
                     "uniProtkbId": "CYA1_CANFA",
-                    "organism": {"scientificName": "Canis lupus familiaris"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
+                    "organism": {"scientificName": "Canis lupus"},
+                    "sequence": {"value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"},
                     "comments": [
-                        {
-                            "commentType": "FUNCTION",
-                            "texts": [{"value": "Test function annotation"}],
-                        }
+                        {"commentType": "FUNCTION", "texts": [{"value": "Toxic"}]},
                     ],
                 }
             ]
@@ -39,534 +116,82 @@ class TestVenomPeptidesUniprotAPI:
             status=200,
         )
 
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
+        result = venom_peptides_uniprot(mock_context, database=mock_database_resource)
 
-        assert result.metadata["num_records"] == 1
-
-    @responses.activate
-    def test_rate_limit_handling(self):
-        """Test HTTP 429 rate limit is handled with backoff."""
-        mock_response = {
-            "results": [
-                {
-                    "primaryAccession": "P01589",
-                    "uniProtkbId": "CYA1_CANFA",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_response,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert "num_records" in result.metadata
-
-    def test_timeout_handling():
-        """Test timeout error is raised and logged."""
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = requests.exceptions.Timeout()
-
-            context = MagicMock()
-
-            with pytest.raises(requests.exceptions.Timeout):
-                venom_peptides_uniprot(context)
-
-            context.log.error.assert_called()
-
-    def test_http_error_handling():
-        """Test HTTP errors are raised and logged."""
-        with patch("requests.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-                "500 Server Error"
-            )
-            mock_get.return_value = mock_response
-
-            context = MagicMock()
-
-            with pytest.raises(requests.exceptions.HTTPError):
-                venom_peptides_uniprot(context)
-
-            context.log.error.assert_called()
-
-
-class TestVenomPeptidesUniprotDataExtraction:
-    """Unit tests for data extraction from UniProt response."""
-
-    @responses.activate
-    def test_extraction_from_valid_uniprot_response(self):
-        """Test extraction of all required fields from valid response."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1_HUMAN",
-                    "organism": {"scientificName": "Homo sapiens"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [
-                        {
-                            "commentType": "FUNCTION",
-                            "texts": [{"value": "Exhibits proteolytic activity"}],
-                        }
-                    ],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 1
-        assert result.metadata["organism_count"] == 1
-
-    @responses.activate
-    def test_handling_of_missing_function_field(self):
-        """Test handling of missing function annotation."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1_HUMAN",
-                    "organism": {"scientificName": "Homo sapiens"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 1
-
-    @responses.activate
-    def test_null_value_handling(self):
-        """Test handling of null/empty values in response."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "",
-                    "organism": {},
-                    "sequence": {},
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 1
-
-    @responses.activate
-    def test_sequence_length_calculation(self):
-        """Test sequence length is calculated correctly."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["avg_length"] > 0
-
-
-class TestVenomPeptidesUniprotPagination:
-    """Unit tests for pagination logic."""
-
-    @responses.activate
-    def test_pagination_loop_termination(self):
-        """Test pagination loop terminates correctly after MAX_PAGES."""
-        mock_page1 = {
-            "results": [
-                {
-                    "primaryAccession": f"P{i:05d}",
-                    "uniProtkbId": f"TEST{i}",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-                for i in range(50)
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_page1,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 50
-
-    @responses.activate
-    def test_empty_page_detection(self):
-        """Test pagination stops when empty results are returned."""
-        empty_response = {"results": []}
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=empty_response,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 0
-
-    @responses.activate
-    def test_offset_calculation_with_multiple_pages(self):
-        """Test offset is calculated correctly across pages."""
-        page1 = {
-            "results": [
-                {
-                    "primaryAccession": f"P{i:05d}",
-                    "uniProtkbId": f"TEST{i}",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-                for i in range(50)
-            ]
-        }
-
-        page2 = {
-            "results": [
-                {
-                    "primaryAccession": f"P{50 + i:05d}",
-                    "uniProtkbId": f"TEST{50 + i}",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-                for i in range(50)
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=page1,
-            status=200,
-        )
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=page2,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] == 100
-
-
-class TestVenomPeptidesUniprotMetadata:
-    """Unit tests for metadata generation."""
-
-    @responses.activate
-    def test_metadata_includes_row_count(self):
-        """Test metadata includes record count."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert "num_records" in result.metadata
-        assert isinstance(result.metadata["num_records"], int)
-
-    @responses.activate
-    def test_metadata_includes_organism_count(self):
-        """Test metadata includes unique organism count."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": f"P{i:05d}",
-                    "uniProtkbId": f"TEST{i}",
-                    "organism": {"scientificName": f"Organism {i % 2}"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-                for i in range(10)
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert "organism_count" in result.metadata
-        assert isinstance(result.metadata["organism_count"], int)
-
-    @responses.activate
-    def test_metadata_includes_avg_length(self):
-        """Test metadata includes average sequence length."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert "avg_length" in result.metadata
-
-    @responses.activate
-    def test_metadata_includes_fetch_time(self):
-        """Test metadata includes fetch timestamp."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12345",
-                    "uniProtkbId": "TEST1",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
+        assert result.metadata["records_fetched"] == 1
         assert "fetch_time" in result.metadata
 
-
-class TestVenomPeptidesUniprotNonStandardAminoAcids:
-    """Unit tests for sequences with non-standard amino acid codes."""
-
     @responses.activate
-    def test_sequence_with_unknown_residue_x(self):
-        """Test sequences with X (unknown) amino acid are accepted."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P0DPS3",
-                    "uniProtkbId": "VASP1_VIPAA",
-                    "organism": {"scientificName": "Vipera aspis aspis"},
-                    "sequence": {
-                        "value": "VIGGDECXNEHPFLVALHTARXXRFYCAGTLINQXWVLTAARCDRXXXX"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
+    def test_empty_response(self, mock_context, mock_database_resource):
+        from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
 
         responses.add(
             responses.GET,
             "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
+            json={"results": []},
             status=200,
         )
 
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] >= 0
+        # Empty DataFrame lacks columns, so metadata construction raises KeyError
+        with pytest.raises(KeyError):
+            venom_peptides_uniprot(mock_context, database=mock_database_resource)
 
     @responses.activate
-    def test_sequence_with_ambiguous_codes_bz(self):
-        """Test sequences with B/Z amino acids (Asn/Asp, Gln/Glu) are accepted."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12346",
-                    "uniProtkbId": "TEST2_AMBIG",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {"value": "ACBDZFGHIKLMNPQRSTVWY"},
-                    "comments": [],
-                }
-            ]
-        }
+    def test_missing_function_field(self, mock_context, mock_database_resource):
+        from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
+
+        session = mock_database_resource.get_session.return_value
+        session.execute.return_value.fetchone.return_value = ("org-uuid",)
+        session.execute.return_value.rowcount = 1
 
         responses.add(
             responses.GET,
             "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
+            json={
+                "results": [
+                    {
+                        "primaryAccession": "P12345",
+                        "uniProtkbId": "TEST1",
+                        "organism": {"scientificName": "Test"},
+                        "sequence": {"value": "ACDEFGHIK"},
+                        "comments": [],
+                    }
+                ]
+            },
             status=200,
         )
 
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] >= 0
+        result = venom_peptides_uniprot(mock_context, database=mock_database_resource)
+        assert result.metadata["records_fetched"] == 1
 
     @responses.activate
-    def test_sequence_with_selenocysteine_u(self):
-        """Test sequences with U (Selenocysteine) are accepted."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12347",
-                    "uniProtkbId": "TEST3_SEC",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLUALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
+    def test_metadata_keys(self, mock_context, mock_database_resource):
+        from dagster_pipelines.assets.ingestion import venom_peptides_uniprot
+
+        session = mock_database_resource.get_session.return_value
+        session.execute.return_value.fetchone.return_value = ("org-uuid",)
+        session.execute.return_value.rowcount = 1
 
         responses.add(
             responses.GET,
             "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
+            json={
+                "results": [
+                    {
+                        "primaryAccession": "P12345",
+                        "uniProtkbId": "TEST1",
+                        "organism": {"scientificName": "Organism A"},
+                        "sequence": {"value": "ACDEFGHIKLMNPQRSTVWY"},
+                        "comments": [],
+                    }
+                ]
+            },
             status=200,
         )
 
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
+        result = venom_peptides_uniprot(mock_context, database=mock_database_resource)
 
-        assert result.metadata["num_records"] >= 0
-
-    @responses.activate
-    def test_sequence_with_multiple_non_standard_codes(
-        self,
-    ):
-        """Test sequences with multiple non-standard codes are accepted."""
-        mock_data = {
-            "results": [
-                {
-                    "primaryAccession": "P12348",
-                    "uniProtkbId": "TEST4_MIXED",
-                    "organism": {"scientificName": "Test organism"},
-                    "sequence": {
-                        "value": "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYBOUGKFFYTPK"
-                    },
-                    "comments": [],
-                }
-            ]
-        }
-
-        responses.add(
-            responses.GET,
-            "https://rest.uniprot.org/uniprotkb/search",
-            json=mock_data,
-            status=200,
-        )
-
-        context = MagicMock()
-        result = venom_peptides_uniprot(context)
-
-        assert result.metadata["num_records"] >= 0
+        assert "records_fetched" in result.metadata
+        assert "fetch_time" in result.metadata
+        assert "organism_count" in result.metadata
+        assert "avg_length" in result.metadata

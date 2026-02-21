@@ -602,23 +602,43 @@ make logs | grep ERROR
 
 ## Testing
 
+The project uses **pytest** for unit testing. Tests cover all Dagster pipeline assets, helper functions, resources, job definitions, and shared configuration. No external services (database, Elasticsearch, Redis) are needed to run the test suite — all dependencies are mocked.
+
 ### Running Tests
 
 ```bash
-# All tests
+# Run the full test suite locally (no Docker required)
 make test
 
-# Unit tests only
-make test tests/unit/
-
-# Integration tests
-make test tests/integration/
-
-# With coverage
+# Run tests with coverage report
 make test-cov
 
-# Specific test file
-make test tests/unit/test_peptide.py -v
+# Run tests inside the Dagster daemon container
+make test-docker
+
+# Run a specific test file
+PYTHONPATH=dagster_pipelines:. pytest tests/unit/assets/test_ingestion.py -v
+
+# Run tests matching a keyword
+PYTHONPATH=dagster_pipelines:. pytest tests/ -v -k "blast"
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py                         # Shared fixtures (mock_context, mock_database_resource, mock_session)
+├── unit/
+│   ├── assets/
+│   │   ├── test_blast_similarity.py    # Sequence alignment, helpers, asset
+│   │   ├── test_elasticsearch_indexer.py # Index creation, mapping, bulk indexing
+│   │   ├── test_enrichment.py          # Property enrichment asset, batch helpers
+│   │   └── test_ingestion.py           # UniProt ingestion, hashing, batch insert
+│   ├── test_property_calculators.py    # RDKit/BioPython property computation
+│   ├── test_resources.py               # Database, Elasticsearch, Redis resources
+│   ├── test_jobs.py                    # Dagster job definitions
+│   └── test_settings.py               # Pydantic settings and validators
+└── integration/                        # (reserved for future integration tests)
 ```
 
 ---

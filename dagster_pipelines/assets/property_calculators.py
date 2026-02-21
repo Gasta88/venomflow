@@ -244,7 +244,7 @@ def compute_biopython_properties(sequence: str) -> Optional[Dict[str, Any]]:
             "aromaticity": round(aromaticity, 4),
         }
 
-        net_charge_at_ph7 = prot_analysis.charge_at_ph(7.0)
+        net_charge_at_ph7 = prot_analysis.charge_at_pH(7.0)
         properties["charge_at_ph7"] = (
             round(net_charge_at_ph7, 3) if net_charge_at_ph7 is not None else None
         )
