@@ -48,7 +48,8 @@ class TestSettings:
         assert "9200" in url
 
     def test_elastic_hosts(self):
-        s = Settings()
+        # Test elastic_hosts property returns correctly formatted list
+        s = Settings(elastic_host="localhost", elastic_port=9200)
         hosts = s.elastic_hosts
         assert isinstance(hosts, list)
         assert len(hosts) == 1

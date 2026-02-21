@@ -297,10 +297,10 @@ def compute_peptide_properties(
             "properties_computed": MetadataValue.int(properties_computed),
             "error_count": MetadataValue.int(error_count),
             "molecular_weights_updated": MetadataValue.int(molecular_weights_updated),
-            "avg_logp": MetadataValue.float(avg_logp),
-            "avg_tpsa": MetadataValue.float(avg_tpsa),
-            "avg_isoelectric_point": MetadataValue.float(avg_isoelectric_point),
-            "avg_hydrophobicity": MetadataValue.float(avg_hydrophobicity),
+            "avg_logp": MetadataValue.float(float(avg_logp)),
+            "avg_tpsa": MetadataValue.float(float(avg_tpsa)),
+            "avg_isoelectric_point": MetadataValue.float(float(avg_isoelectric_point)),
+            "avg_hydrophobicity": MetadataValue.float(float(avg_hydrophobicity)),
         }
 
         return MaterializeResult(metadata=metadata)

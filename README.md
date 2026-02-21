@@ -581,12 +581,6 @@ make test-cov
 
 # Run tests inside the Dagster daemon container
 make test-docker
-
-# Run a specific test file
-PYTHONPATH=dagster_pipelines:. pytest tests/unit/assets/test_ingestion.py -v
-
-# Run tests matching a keyword
-PYTHONPATH=dagster_pipelines:. pytest tests/ -v -k "blast"
 ```
 
 ### Test Structure

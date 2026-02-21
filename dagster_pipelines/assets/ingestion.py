@@ -318,7 +318,7 @@ def venom_peptides_uniprot(
             "organisms_created": MetadataValue.int(organisms_created),
             "fetch_time": MetadataValue.text(datetime.now().isoformat()),
             "organism_count": MetadataValue.int(df["organism_name"].nunique()),
-            "avg_length": MetadataValue.float(df["length"].mean()),
+            "avg_length": MetadataValue.float(float(df["length"].mean())),
         }
 
         return MaterializeResult(metadata=metadata)

@@ -318,8 +318,8 @@ def compute_sequence_similarities(
             "database_created": MetadataValue.bool(True),
             "similarities_stored": MetadataValue.int(similarities_stored),
             "error_count": MetadataValue.int(error_count),
-            "avg_score": MetadataValue.float(avg_score),
-            "score_threshold": MetadataValue.float(ALIGNMENT_SCORE_THRESHOLD),
+            "avg_score": MetadataValue.float(float(avg_score)),
+            "score_threshold": MetadataValue.float(float(ALIGNMENT_SCORE_THRESHOLD)),
             "max_target_seqs": MetadataValue.int(
                 getattr(settings, "similarity_max_target_seqs", 100)
             ),

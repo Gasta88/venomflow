@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs ps clean init-db shell-db shell-dagster-daemon shell-dagster-webserver test test-cov test-docker backup-db restore-db dev-setup health
+.PHONY: help build up down restart logs ps clean init-db shell-db shell-dagster-daemon shell-dagster-webserver test test-cov backup-db restore-db dev-setup health
 
 # Default target
 help:
@@ -36,7 +36,6 @@ help:
 	@echo "  make shell-dagster-webserver  - Open Dagster webserver container shell"
 	@echo "  make test                     - Run unit tests locally"
 	@echo "  make test-cov                 - Run tests with coverage report"
-	@echo "  make test-docker              - Run tests inside Dagster daemon container"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev-setup       - Setup development environment"
@@ -138,10 +137,6 @@ test:
 # Run tests with coverage report
 test-cov:
 	PYTHONPATH=dagster_pipelines:. pytest tests/ -v --cov=dagster_pipelines --cov-report=term-missing
-
-# Run tests inside Docker container
-test-docker:
-	docker-compose exec dagster-daemon pytest tests/ -v
 
 
 # Backup database

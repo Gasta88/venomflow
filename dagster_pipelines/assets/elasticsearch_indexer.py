@@ -413,7 +413,7 @@ def index_peptides_to_elasticsearch(
             "documents_indexed": MetadataValue.int(documents_indexed),
             "batch_count": MetadataValue.int(batch_count),
             "error_count": MetadataValue.int(error_count),
-            "index_time_seconds": MetadataValue.float(index_time_seconds),
+            "index_time_seconds": MetadataValue.float(float(index_time_seconds)),
             "index_name": MetadataValue.text(INDEX_NAME),
             "kmer_analyzer": MetadataValue.text("3-6 gram sliding window"),
         }
