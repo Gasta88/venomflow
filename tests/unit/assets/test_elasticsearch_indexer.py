@@ -1,6 +1,5 @@
 """Unit tests for Elasticsearch peptide indexer asset."""
 
-import pytest
 from unittest.mock import MagicMock, Mock, patch
 from datetime import datetime
 

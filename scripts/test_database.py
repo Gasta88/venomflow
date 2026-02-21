@@ -15,7 +15,6 @@ Exit Codes:
 
 import sys
 import os
-from datetime import datetime
 from uuid import uuid4
 
 # Add project root to path
@@ -23,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from sqlalchemy import text
-    from shared.database.connection import engine, get_db_context, test_connection
+    from shared.database.connection import get_db_context, test_connection
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("💡 Make sure SQLAlchemy is installed: pip install sqlalchemy psycopg2-binary")

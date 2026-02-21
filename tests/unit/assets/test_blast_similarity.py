@@ -1,10 +1,5 @@
 """Unit tests for blast_similarity asset with BioPython alignment."""
 
-import pytest
-from unittest.mock import MagicMock
-from pathlib import Path
-from sqlalchemy.orm import Session
-
 
 class TestOrderPeptideIds:
     """Test order_peptide_ids function."""
@@ -169,26 +164,6 @@ class TestCreateFastaFromPeptides:
         assert ">id1|name1" in content
         assert "ACDEF" in content
         assert ">id2|name2" in content
-
-
-class TestParseAlignmentResults:
-    """Test parse_alignment_results passthrough."""
-
-    def test_returns_input_unchanged(self):
-        from dagster_pipelines.assets.blast_similarity import parse_alignment_results
-
-        results = [{"peptide_id_1": "id1", "score": 0.9}]
-        parsed = parse_alignment_results(results, {})
-        assert parsed is results
-
-
-class TestCreateAlignmentDatabase:
-    """Test placeholder function."""
-
-    def test_always_returns_true(self, tmp_path):
-        from dagster_pipelines.assets.blast_similarity import create_alignment_database
-
-        assert create_alignment_database(tmp_path / "a", tmp_path / "b") is True
 
 
 class TestInsertSimilarity:

@@ -6,9 +6,8 @@ Verifies PostgreSQL schema has been correctly applied
 
 import sys
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 import psycopg2
-from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 
 # Load environment variables

@@ -1,9 +1,7 @@
 """Unit tests for ingestion asset and helpers."""
 
 import pytest
-from unittest.mock import MagicMock, patch
 import responses
-import json
 
 from dagster_pipelines.assets.ingestion import (
     _calculate_sequence_hash,

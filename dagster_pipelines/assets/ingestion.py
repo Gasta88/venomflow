@@ -125,7 +125,7 @@ def _batch_insert_peptides(
     - Error Handling: Handles HTTP errors and timeouts gracefully
     - Deduplication: Uses SHA256 sequence_hash to avoid duplicates
     - UPSERT: Handles duplicates gracefully
-    - Batch Inserts: Inserts peptides in batches of 50
+    - Batch Inserts: Inserts peptides in batches of 500
     """,
 )
 def venom_peptides_uniprot(

@@ -16,8 +16,6 @@ from dagster_pipelines.assets.property_calculators import (
     compute_all_properties,
     compute_properties_with_fallbacks,
     BIOPYTHON_AVAILABLE,
-    STANDARD_AMINO_ACIDS,
-    AMINO_ACID_MAPPING,
 )
 
 

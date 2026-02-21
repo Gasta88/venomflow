@@ -99,7 +99,7 @@ def compute_peptide_properties(
     Dagster asset for computing peptide physicochemical properties.
 
     Fetches peptides without properties from the database, computes properties
-    using RDKit and BioPython, and inserts results in batches of 52.
+    using RDKit and BioPython, and inserts results in batches of 50.
     Logs progress for each batch and returns metadata with statistics.
 
     Args:

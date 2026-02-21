@@ -6,7 +6,7 @@ Analyzes the schema.sql file without requiring a database connection
 
 import re
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import Dict
 
 # Color codes for terminal output
 GREEN = '\033[92m'

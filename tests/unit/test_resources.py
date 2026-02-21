@@ -1,6 +1,5 @@
 """Unit tests for Dagster resource definitions."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from dagster_pipelines.resources.database import DatabaseResource
