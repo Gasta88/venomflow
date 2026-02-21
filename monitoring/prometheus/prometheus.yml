@@ -57,9 +57,10 @@ scrape_configs:
         labels:
           service: 'dagster'
 
-  # FastAPI application metrics (requires prometheus client)
+  # FastAPI application metrics (prometheus-fastapi-instrumentator)
   - job_name: 'api'
+    metrics_path: /metrics
     static_configs:
-      - targets: []  # Add api:8000/metrics when available
+      - targets: ['api:8000']
         labels:
           service: 'api'

@@ -513,27 +513,75 @@ dagster job execute -m dagster_pipelines -j venomflow_pipeline
 
 ## Monitoring & Observability
 
-### Dashboards
+VenomFlow ships with a fully provisioned **Prometheus + Grafana** monitoring stack.
+When you run `make up`, both services start automatically, the Prometheus datasource
+is registered in Grafana, and the *VenomFlow Overview* dashboard is loaded — no
+manual configuration needed.
 
-- **Grafana**: http://localhost:3001
-  - Pipeline execution metrics
-  - Resource utilization
-  - Error rates and latency
-  - Custom business metrics
+### Architecture
 
-- **Prometheus**: http://localhost:9090
-  - Raw metrics exploration
-  - Query language (PromQL)
-  - Alert configuration
+```
+FastAPI (/metrics)  ──▶  Prometheus (scrape)  ──▶  Grafana (visualise)
+```
 
-### Metrics Collected
+- **Prometheus** scrapes the FastAPI `/metrics` endpoint every 15 s and stores the
+  time-series data.
+- **Grafana** reads from Prometheus through a pre-provisioned datasource and displays
+  the *VenomFlow Overview* dashboard.
 
-- Pipeline execution time and success rate
-- API request latency and throughput
-- Database query performance
-- Cache hit/miss ratio
-- Resource usage (CPU, memory, disk)
-- Error rates by service and endpoint
+### Accessing the Services
+
+| Service    | URL                        | Credentials                                       |
+|------------|----------------------------|----------------------------------------------------|
+| Grafana    | http://localhost:3001      | `admin` / value of `GRAFANA_ADMIN_PASSWORD` in `.env` |
+| Prometheus | http://localhost:9090      | No authentication                                  |
+
+### Grafana Setup & Dashboard
+
+Grafana is **auto-provisioned** on first start via configuration files mounted into the
+container:
+
+| File | Purpose |
+|------|---------|
+| `monitoring/grafana/datasources/datasource.yml` | Registers Prometheus as the default datasource |
+| `monitoring/grafana/dashboards/dashboards.yml` | Tells Grafana where to find dashboard JSON files |
+| `monitoring/grafana/dashboards/venomflow-overview.json` | The *VenomFlow Overview* dashboard |
+
+**To inspect the dashboard:**
+
+1. Start all services: `make up`
+2. Open Grafana at http://localhost:3001
+3. Log in with `admin` / your `GRAFANA_ADMIN_PASSWORD`
+4. Navigate to **Dashboards → VenomFlow Overview**
+
+The dashboard contains the following panels:
+
+| Panel | Description |
+|-------|-------------|
+| API Status | `up` / `down` indicator for the FastAPI service |
+| Prometheus Status | `up` / `down` indicator for Prometheus self-monitoring |
+| API Request Rate | Requests per second broken down by method, handler, and status |
+| API Response Latency | p50 / p95 / p99 response time percentiles |
+| HTTP Responses by Status Code | Rate of 2xx, 4xx, 5xx responses |
+| Requests In Progress | Number of currently in-flight requests |
+
+### Prometheus Configuration
+
+Prometheus configuration lives at `monitoring/prometheus/prometheus.yml`.
+The API scrape target (`api:8000`) is pre-configured; additional exporters
+(PostgreSQL, Redis, Elasticsearch) can be enabled by uncommenting or adding
+their targets.
+
+### API Metrics Endpoint
+
+The FastAPI application exposes Prometheus-format metrics at
+`http://localhost:8000/metrics` using
+[`prometheus-fastapi-instrumentator`](https://github.com/trallnag/prometheus-fastapi-instrumentator).
+Key metrics include:
+
+- `http_requests_total` — total request count by method, handler, and status
+- `http_request_duration_seconds` — request latency histogram
+- `http_requests_in_progress` — gauge of in-flight requests
 
 ### Logging
 

@@ -1,0 +1,18 @@
+# =============================================================================
+# GRAFANA DASHBOARD PROVISIONING
+# =============================================================================
+# Auto-loads dashboard JSON files from the provisioned path.
+# Docs: https://grafana.com/docs/grafana/latest/administration/provisioning/
+
+apiVersion: 1
+
+providers:
+  - name: VenomFlow
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

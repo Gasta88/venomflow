@@ -1,0 +1,230 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "API Status",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "up{job=\"api\"}",
+          "legendFormat": "API",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Prometheus Status",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "up{job=\"prometheus\"}",
+          "legendFormat": "Prometheus",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "req/s",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"api\"}[1m])",
+          "legendFormat": "{{method}} {{handler}} {{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "seconds",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "API Response Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"api\"}[5m]))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"api\"}[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"api\"}[5m]))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "HTTP Responses by Status Code",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(http_requests_total{job=\"api\"}[1m]))",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Requests In Progress",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "http_requests_in_progress{job=\"api\"}",
+          "legendFormat": "in-progress",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["venomflow", "api", "monitoring"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "VenomFlow Overview",
+  "uid": "venomflow-overview",
+  "version": 1
+}
