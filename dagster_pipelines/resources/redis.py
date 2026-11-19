@@ -1,9 +1,10 @@
 """Redis resource for Dagster using shared/config/settings."""
 
 from typing import Optional
+
 import dagster as dg
-from pydantic import Field, PrivateAttr
 import redis
+from pydantic import Field, PrivateAttr
 from redis.client import Redis
 
 from shared.config.settings import settings

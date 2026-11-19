@@ -3,20 +3,18 @@ Dagster assets for peptide enrichment operations.
 Computes physicochemical properties for peptides using RDKit and BioPython.
 """
 
-import logging
 import hashlib
-from typing import Any, Dict, List, Tuple
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
-from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
+from typing import Any, Dict, List, Tuple
 
 from assets.property_calculators import (
     compute_properties_with_fallbacks,
 )
+from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
 from resources.database import DatabaseResource
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +181,6 @@ def compute_peptide_properties(
                 }
 
                 for future in as_completed(future_to_row):
-                    row = future_to_row[future]
                     try:
                         property_record = future.result()
                         batch_properties.append(property_record)

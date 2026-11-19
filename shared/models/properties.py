@@ -4,10 +4,10 @@ Represents calculated physicochemical properties of peptides
 """
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PropertiesBase(BaseModel):

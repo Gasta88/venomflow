@@ -6,11 +6,12 @@ Tests connectivity and health of all Docker services.
 import os
 import sys
 import time
+from typing import Tuple
+
 import psycopg2
 import redis
 import requests
 from elasticsearch import Elasticsearch
-from typing import Tuple
 
 # Load environment variables
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -49,7 +50,7 @@ def test_redis() -> Tuple[bool, str]:
             socket_connect_timeout=settings.redis_socket_connect_timeout,
             socket_timeout=settings.redis_socket_timeout
         )
-        pong = client.ping()
+        client.ping()
         info = client.info('server')
         version = info['redis_version']
         client.close()

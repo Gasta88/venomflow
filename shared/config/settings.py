@@ -12,8 +12,9 @@ Usage:
 """
 
 from typing import List, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from pydantic import Field, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -282,7 +283,7 @@ def validate_settings() -> None:
             errors.append("REDIS_PASSWORD must be set in production")
     
     if errors:
-        raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
+        raise ValueError("Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
 
 
 # =============================================================================

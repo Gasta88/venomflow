@@ -1,10 +1,11 @@
 """Database resource for Dagster using shared/config/settings."""
 
 from typing import Optional
+
 import dagster as dg
 from pydantic import Field, PrivateAttr
-from sqlalchemy import create_engine, Engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from shared.config.settings import settings
 

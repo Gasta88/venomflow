@@ -1,6 +1,6 @@
 """Unit tests for Dagster resource definitions."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from dagster_pipelines.resources.database import DatabaseResource
 from dagster_pipelines.resources.elasticsearch import ElasticsearchResource
@@ -91,7 +91,7 @@ class TestRedisResource:
     @patch("dagster_pipelines.resources.redis.redis.from_url")
     def test_get_client_creates_connection(self, mock_from_url):
         resource = RedisResource()
-        client = resource.get_client()
+        resource.get_client()
         mock_from_url.assert_called_once()
         mock_from_url.return_value.ping.assert_called_once()
 

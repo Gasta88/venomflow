@@ -4,18 +4,19 @@ Tests BioPython property computation for peptide sequences.
 RDKit is not available in test environment, so those paths are tested via mock.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from dagster_pipelines.assets.property_calculators import (
-    sanitize_sequence,
-    calculate_molecular_weight_from_sequence,
-    calculate_basic_properties,
-    compute_biopython_properties,
-    compute_rdkit_properties,
-    compute_all_properties,
-    compute_properties_with_fallbacks,
     BIOPYTHON_AVAILABLE,
+    calculate_basic_properties,
+    calculate_molecular_weight_from_sequence,
+    compute_all_properties,
+    compute_biopython_properties,
+    compute_properties_with_fallbacks,
+    compute_rdkit_properties,
+    sanitize_sequence,
 )
 
 

@@ -4,8 +4,8 @@ import pytest
 import responses
 
 from dagster_pipelines.assets.ingestion import (
-    _calculate_sequence_hash,
     _batch_insert_peptides,
+    _calculate_sequence_hash,
     _get_or_create_organism,
 )
 

@@ -8,13 +8,11 @@ and bulk indexes all peptides from peptides_enriched database view.
 import logging
 from typing import Any, Dict, List, Tuple
 
-from elasticsearch import Elasticsearch, helpers
-from sqlalchemy import text
-
 from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
-
+from elasticsearch import Elasticsearch, helpers
 from resources.database import DatabaseResource
 from resources.elasticsearch import ElasticsearchResource
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 

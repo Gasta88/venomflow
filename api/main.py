@@ -15,9 +15,8 @@ import strawberry
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-from strawberry.fastapi import GraphQLRouter
-
 from schema.queries import Query
+from strawberry.fastapi import GraphQLRouter
 
 # =============================================================================
 # GRAPHQL SCHEMA DEFINITION

@@ -34,8 +34,8 @@ Usage Example:
 """
 
 from .database import DatabaseResource, database_resource
-from .redis import RedisResource, redis_resource
 from .elasticsearch import ElasticsearchResource, elasticsearch_resource
+from .redis import RedisResource, redis_resource
 
 __all__ = [
     "DatabaseResource",

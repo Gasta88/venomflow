@@ -1,23 +1,21 @@
-from dagster import (
-    AssetExecutionContext,
-    asset,
-    MaterializeResult,
-    MetadataValue,
-)
-import pandas as pd
-import requests
 import hashlib
+import json
 import random
 import time
 from datetime import datetime
-from typing import List, Dict, Any
-import json
+from typing import Any, Dict, List
 
+import pandas as pd
+import requests
+from dagster import (
+    AssetExecutionContext,
+    MaterializeResult,
+    MetadataValue,
+    asset,
+)
+from resources.database import DatabaseResource
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from resources.database import DatabaseResource
-
 
 BATCH_SIZE = 500
 
@@ -187,7 +185,7 @@ def venom_peptides_uniprot(
                 )
 
                 if response.status_code == 429:
-                    context.log.warning(f"Rate limit hit, backing off...")
+                    context.log.warning("Rate limit hit, backing off...")
                     time.sleep(2)
                     continue
 
