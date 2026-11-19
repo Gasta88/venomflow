@@ -19,8 +19,8 @@
 | Component | Technology | Purpose | Key Details |
 |-----------|-----------|---------|-------------|
 | **Orchestration** | Dagster 1.5+ | Asset-based data pipelines | Assets organized in `dagster_pipelines/assets/` by function |
-| **API** | FastAPI 0.109+ + Strawberry | GraphQL endpoint | Resolvers in `api/resolvers/`, schema in `api/schema/` |
-| **Database** | PostgreSQL 16 | Primary data store | Schema: `shared/database/schema.sql` |
+| **API** | FastAPI 0.109+ + Strawberry | GraphQL endpoint (queries only) | Resolvers in `api/schema/queries.py`, types in `api/schema/types.py` |
+| **Database** | PostgreSQL 16 | Primary data store | Schema: `shared/database/01-schema.sql` |
 | **Cache** | Redis 7 | Job queues, caching | Stream-based event processing |
 | **Search** | Elasticsearch 8.11 | Full-text and k-mer search | Sequence similarity indexing |
 | **Processing** | RDKit, BioPython | Cheminformatics, bioinformatics | Computed properties stored in DB |
@@ -33,37 +33,41 @@
 venomflow/
 ├── docker-compose.yml          # All service definitions (8 services)
 ├── Makefile                    # Common commands (use `make help`)
+├── pyproject.toml              # Metadata, dependency extras, pytest/ruff/coverage config
+├── requirements-dev.txt        # Dev/test tooling (Dagster runtime + pytest/ruff)
+├── requirements-dev.lock       # Hash-pinned lockfile used by CI
+├── LICENSE                     # MIT
 ├── .env.example                # Environment variables template
 │
 ├── dagster_pipelines/          # Dagster orchestration
 │   ├── Dockerfile              # Dagster container image
+│   ├── .dockerignore
+│   ├── requirements.txt        # Dagster runtime dependencies
+│   ├── requirements.lock       # Hash-pinned lockfile used by the image
 │   ├── workspace.yaml          # Dagster workspace config
 │   ├── dagster.yaml            # Dagster settings
 │   ├── __init__.py             # Dagster definitions entry point
 │   ├── assets/                 # Data assets (computations)
-│   │   ├── ingestion.py        # Data fetching from UniProt
-│   │   ├── validation.py       # Data quality checks
-│   │   └── enrichment.py       # Property calculation
-│   ├── resources/              # External service clients
-│   │   ├── database.py         # PostgreSQL connection
-│   │   ├── redis.py            # Redis client
-│   │   └── elasticsearch.py    # Elasticsearch client
-│   ├── jobs/                   # Scheduled jobs
-│   ├── sensors/                # Event-based triggers
-│   └── tests/                  # Pipeline tests
+│   │   ├── ingestion.py        # UniProt ingestion
+│   │   ├── enrichment.py       # Property enrichment asset
+│   │   ├── property_calculators.py  # RDKit/BioPython helpers
+│   │   ├── blast_similarity.py # Sequence similarity asset
+│   │   └── elasticsearch_indexer.py # Bulk indexing asset
+│   ├── jobs/                   # venom_flow_pipeline + daily schedule
+│   └── resources/              # External service clients
+│       ├── database.py         # PostgreSQL connection
+│       ├── redis.py            # Redis client
+│       └── elasticsearch.py    # Elasticsearch client
 │
 ├── api/                        # FastAPI GraphQL API
 │   ├── Dockerfile              # API container image
+│   ├── .dockerignore
+│   ├── requirements.txt        # API dependencies
+│   ├── requirements.lock       # Hash-pinned lockfile used by the image
 │   ├── main.py                 # API entry point
-│   ├── schema/                 # GraphQL schema definitions
-│   │   ├── queries.py          # Query resolvers
-│   │   ├── mutations.py        # Mutation resolvers
-│   │   └── subscriptions.py    # WebSocket subscriptions
-│   ├── resolvers/              # Business logic
-│   │   └── peptide.py          # Peptide-specific queries
-│   ├── services/               # Service layer
-│   │   └── search.py           # Search/Elasticsearch integration
-│   └── tests/                  # API tests
+│   └── schema/                 # GraphQL schema definitions
+│       ├── queries.py          # Query resolvers
+│       └── types.py            # Strawberry types and input filters
 │
 ├── shared/                     # Shared code across services
 │   ├── config/                 # Configuration management
@@ -72,24 +76,18 @@ venomflow/
 │   │   ├── organism.py         # Organism model
 │   │   ├── peptide.py          # Peptide model (sequence validation)
 │   │   ├── bioactivity.py      # Bioactivity model
-│   │   └── properties.py      # Physicochemical properties
-│   ├── database/               # Database utilities
-│   │   ├── __init__.py         # Connection pool management
-│   │   ├── schema.sql          # Full database schema (8 tables)
-│   │   └── migrations/         # Migration scripts (if any)
-│   └── utils/                  # Utility functions
-│       └── validators.py       # Data validation helpers
-│
-├── workers/                    # Background workers
-│   ├── enrichment_worker.py    # Enrichment processing
-│   └── blast_runner.py         # BLAST execution
+│   │   └── properties.py       # Physicochemical properties
+│   └── database/               # Database utilities
+│       ├── connection.py       # Connection pool management
+│       ├── 01-schema.sql       # Full database schema (8 tables)
+│       └── 02-dagster-init.sql # Dagster metadata database
 │
 ├── scripts/                    # Utility scripts
+│   ├── init_database.sh        # Apply 01-schema.sql to the running database
 │   ├── verify_infrastructure.py  # Check all services health
 │   ├── verify_schema.py        # Validate database schema
 │   ├── analyze_schema.py       # Schema analysis tool
-│   ├── test_database.py       # Database testing
-│   └── seed_test_data.py      # Test data seeding
+│   └── test_database.py        # Database testing
 │
 ├── monitoring/                 # Monitoring configuration
 │   ├── prometheus/
@@ -99,15 +97,11 @@ venomflow/
 │       └── datasources/        # Data source configs
 │
 ├── tests/                      # Test suite
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   └── fixtures/               # Test fixtures/data
+│   ├── conftest.py             # Shared fixtures
+│   ├── api/                    # GraphQL type and resolver tests
+│   └── unit/                   # Asset, resource, settings and model tests
 │
-└── docs/                       # Documentation
-    ├── architecture.md         # System design (pending)
-    ├── api-reference.md        # API docs (pending)
-    ├── data-dictionary.md      # Schema reference (pending)
-    └── deployment-guide.md     # Deployment guide (pending)
+└── .github/workflows/ci.yml    # Ruff, pytest, docker compose config
 ```
 
 ## Key Patterns & Conventions
@@ -124,7 +118,7 @@ venomflow/
 - **Validation**: Settings have Pydantic validators for critical fields
 
 ### Database Schema
-- **Location**: `shared/database/schema.sql`
+- **Location**: `shared/database/01-schema.sql`
 - **8 Core Tables**: `organisms`, `peptides`, `bioactivity`, `structures`, `properties`, `peptide_similarities`, `pipeline_runs`, `screening_jobs`
 - **Primary Keys**: All use UUID (generated via `uuid_generate_v4()`)
 - **Sequences**: Validated via regex `^[ACDEFGHIKLMNPQRSTVWYXBZUO]+$` (accepts standard 20 amino acids plus non-standard codes XBZUO used in protein databases)
@@ -142,7 +136,7 @@ venomflow/
 - **Location**: All models in `shared/models/`
 
 ### Dagster Assets Convention
-- **Grouping**: Assets organized by `group_name="ingestion|validation|enrichment"`
+- **Grouping**: Assets live in `dagster_pipelines/assets/`; the job and daily schedule are in `dagster_pipelines/jobs/`
 - **Return type**: Always return `MaterializeResult` with metadata
 - **Context**: Use `AssetExecutionContext` for logging
 - **Dependencies**: Specify deps as function parameters
@@ -150,9 +144,8 @@ venomflow/
 - **Location**: `dagster_pipelines/assets/`
 
 ### GraphQL Schema Convention (FastAPI + Strawberry)
-- **Schema files**: `api/schema/queries.py`, `mutations.py`, `subscriptions.py`
-- **Resolvers**: Business logic in `api/resolvers/`
-- **Services**: External integrations in `api/services/`
+- **Schema files**: `api/schema/queries.py` (resolvers) and `api/schema/types.py` (types/filters)
+- **Scope**: Query-only — there are no mutations or subscriptions
 - **Strawberry decorators**: Use `@strawberry.type` for types, `@strawberry.field` for resolvers
 
 ### Docker Development
@@ -241,11 +234,11 @@ mypy .
 
 | File | Purpose | Key Points |
 |------|---------|-------------|
-| `docker-compose.yml` | Service definitions | 7 services: postgres, redis, elasticsearch, prometheus, grafana, dagster-webserver, dagster-daemon |
-| `shared/database/schema.sql` | Database schema | 8 tables, UUID PKs, triggers, views, quality function |
+| `docker-compose.yml` | Service definitions | 8 services: postgres, redis, elasticsearch, prometheus, grafana, dagster-webserver, dagster-daemon, api |
+| `shared/database/01-schema.sql` | Database schema | 8 tables, UUID PKs, triggers, views, quality function |
 | `shared/config/settings.py` | Config management | Pydantic BaseSettings, all env vars defined |
 | `dagster_pipelines/__init__.py` | Dagster definitions | Main entry point for assets |
-| `dagster_pipelines/assets/` | Data pipeline logic | Ingestion, validation, enrichment |
+| `dagster_pipelines/assets/` | Data pipeline logic | Ingestion, enrichment, similarity, indexing |
 | `api/main.py` | FastAPI entry point | GraphQL server setup |
 | `shared/models/` | Data models | Pydantic models with validation |
 | `scripts/verify_infrastructure.py` | Health check script | Tests all service connectivity |
@@ -296,13 +289,13 @@ SELECT * FROM peptides_enriched WHERE quality_score > 0.8 LIMIT 10;
 | Task | Where to Start | Notes |
 |------|---------------|-------|
 | **Fetch UniProt data** | `dagster_pipelines/assets/ingestion.py` | Implements rate limiting, pagination |
-| **Validate sequences** | `shared/utils/validators.py` | Regex validation for amino acids |
-| **Compute properties** | `workers/enrichment_worker.py` | RDKit for cheminformatics |
-| **Sequence similarity** | `workers/similarity_worker.py` | Sequence alignment algorithms |
-| **GraphQL query** | `api/resolvers/peptide.py` | Business logic for queries |
+| **Validate sequences** | `shared/models/peptide.py` | Pydantic `@field_validator` regex for amino acids |
+| **Compute properties** | `dagster_pipelines/assets/property_calculators.py` | RDKit/BioPython helpers |
+| **Sequence similarity** | `dagster_pipelines/assets/blast_similarity.py` | BioPython alignment |
+| **GraphQL query** | `api/schema/queries.py` | Resolvers and row mapping |
 | **Database query** | `shared/database/connection.py` | Connection pooling |
-| **Elasticsearch search** | `api/services/search.py` | Full-text and k-mer search |
-| **Add new API endpoint** | `api/schema/queries.py`, `api/resolvers/` | Schema + resolver pattern |
+| **Elasticsearch search** | `api/schema/queries.py` (`search_peptides`) | Full-text search |
+| **Add new API endpoint** | `api/schema/queries.py`, `api/schema/types.py` | Schema + resolver pattern |
 | **Add new Dagster asset** | `dagster_pipelines/assets/` | Create asset, add to `dagster_pipelines/__init__.py` defs |
 | **Configure logging** | `.env` file | `app_log_level` variable |
 
@@ -389,11 +382,11 @@ python3 scripts/verify_infrastructure.py
 
 ## Known Limitations & TODO
 
-- API not yet implemented (FastAPI + GraphQL)
-- BLAST integration partially implemented
-- Screening jobs framework in place, not fully functional
-- Monitoring dashboards need configuration
-- Documentation files are placeholders (empty)
+- GraphQL API is query-only (no mutations or subscriptions, no authentication)
+- No dedicated data-validation asset; validation is model-level (Pydantic)
+- Similarity is pre-computed and stored; there is no live BLAST runner
+- Screening jobs framework is a database table only, not functional
+- Grafana dashboard is provisioned but alerting is not configured
 
 ## Development Workflow
 
