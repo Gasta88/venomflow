@@ -1,7 +1,116 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "venomflow"
+version = "1.0.0"
+description = "Dagster + FastAPI/GraphQL platform for ingesting and enriching venom peptide data"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Francesco Gastaldello" }]
+keywords = [
+    "bioinformatics",
+    "venom",
+    "peptides",
+    "dagster",
+    "graphql",
+    "cheminformatics",
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Repository = "https://github.com/Gasta88/venomflow"
+
+# Runtime dependencies are split per service because the Dagster and API
+# containers are built from separate contexts. These extras mirror
+# dagster_pipelines/requirements.txt and api/requirements.txt; keep them in
+# sync when editing either file.
+[project.optional-dependencies]
+dagster = [
+    "dagster==1.12.15",
+    "dagster-webserver==1.12.15",
+    "dagster-postgres==0.28.15",
+    "dagster-docker==0.28.15",
+    "psycopg[binary]>=3.1",
+    "sqlalchemy==2.0.23",
+    "redis==5.0.1",
+    "elasticsearch==8.11.0",
+    "pandas==2.1.4",
+    "numpy==1.26.4",
+    "biopython==1.86",
+    "rdkit==2025.9.1",
+    "requests==2.31.0",
+    "httpx==0.25.2",
+    "pydantic==2.10.0",
+    "pydantic-settings==2.13.1",
+    "python-dotenv==1.0.0",
+    "structlog==23.2.0",
+    "python-dateutil==2.8.2",
+]
+api = [
+    "fastapi==0.109.0",
+    "uvicorn[standard]==0.27.0",
+    "strawberry-graphql[fastapi]==0.219.0",
+    "uvloop==0.19.0",
+    "httpx==0.26.0",
+    "pydantic==2.10.0",
+    "pydantic-settings==2.13.1",
+    "asyncpg==0.29.0",
+    "sqlalchemy==2.0.25",
+    "redis==5.0.1",
+    "elasticsearch==8.11.0",
+    "python-dotenv==1.0.0",
+    "prometheus-fastapi-instrumentator==7.0.0",
+    "structlog==24.1.0",
+]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "responses>=0.26",
+    "ruff>=0.6",
+    "strawberry-graphql>=0.219",
+]
+
+[tool.setuptools.packages.find]
+include = ["api*", "dagster_pipelines*", "shared*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["dagster_pipelines", "."]
 addopts = "-v --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "data", "monitoring", "dagster_pipelines/dagster_home"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+ignore = [
+    # Long descriptive strings and SQL literals are easier to read unwrapped.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Dagster definitions are imported by module path, so their order is deliberate.
+"dagster_pipelines/__init__.py" = ["I001"]
+
+[tool.coverage.run]
+source = ["dagster_pipelines", "shared", "api"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
 ]

@@ -1,0 +1,10 @@
+# Development/test environment: Dagster runtime + test and lint tooling.
+# The API service has its own pinned requirements (api/requirements.txt) and is
+# intentionally not combined here because it pins different httpx/structlog
+# versions; API unit tests only need the base strawberry-graphql package.
+-r dagster_pipelines/requirements.txt
+
+strawberry-graphql==0.219.0
+responses>=0.26
+ruff>=0.6
+pytest-cov>=4.1
