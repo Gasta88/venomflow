@@ -24,9 +24,9 @@ RUN apt-get update && apt-get install -y \
 # Create application directory
 WORKDIR /opt/dagster/app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy locked requirements and install Python dependencies
+COPY requirements.txt requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Copy application code
 COPY . .

@@ -1,25 +1,44 @@
 # VenomFlow
 
-**VenomFlow** is a microservices-based data pipeline platform for comprehensive venom peptide research. It provides automated data ingestion, validation, enrichment, and analysis of venom peptides from multiple biological databases, enabling researchers to discover novel bioactive compounds and therapeutic candidates.
+**VenomFlow** is an experimental data platform for venom peptide research. It ingests peptide records from UniProt with Dagster, computes physicochemical properties with RDKit/BioPython, pre-computes sequence similarities, indexes the results in Elasticsearch, and exposes them through a Strawberry GraphQL API.
+
+It is a working prototype built to explore a realistic multi-service data stack — not a production system.
+
+---
+
+## Project Status
+
+| Area | Status | Evidence |
+|------|--------|----------|
+| UniProt ingestion asset | Works | `dagster_pipelines/assets/ingestion.py`, pagination + rate-limit backoff |
+| Property enrichment | Works | `dagster_pipelines/assets/enrichment.py`, RDKit + BioPython |
+| Sequence similarity | Works (pre-computed, stored in Postgres) | `dagster_pipelines/assets/blast_similarity.py` |
+| Elasticsearch indexing | Works | `dagster_pipelines/assets/elasticsearch_indexer.py` |
+| GraphQL API (queries) | Works | `api/schema/queries.py`; unit tests in `tests/api/` |
+| Daily schedule | Works | `venom_flow_daily_schedule` in `dagster_pipelines/jobs/__init__.py` |
+| Prometheus + Grafana | Metrics and a provisioned overview dashboard | `monitoring/` |
+| GraphQL mutations / subscriptions | **Not implemented** | Query-only schema |
+| Data-validation asset | **Not implemented** | Validation is model-level (Pydantic) only |
+| Authentication / JWT | **Not implemented** | API is unauthenticated |
+| Alerting | **Not implemented** | Prometheus/Grafana are dashboard-only |
 
 ---
 
 ## Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Use Cases](#-use-cases)
-- [Quick Start](#-quick-start)
-- [Architecture](#-architecture)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Development Workflow](#-development-workflow)
-- [Configuration](#-configuration)
-- [API Documentation](#-api-documentation)
-- [Data Pipeline](#-data-pipeline)
-- [Monitoring & Observability](#-monitoring--observability)
-- [Testing](#-testing)
-- [Deployment](#-deployment)
+- [Project Status](#project-status)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Use Cases](#use-cases)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [Data Pipeline](#data-pipeline)
+- [Monitoring & Observability](#monitoring--observability)
+- [Testing](#testing)
+- [Deployment](#deployment)
 
 ---
 
@@ -29,12 +48,12 @@ VenomFlow is designed for collecting, processing, and analyzing venom peptide da
 
 ### Why VenomFlow?
 
-- **Automated Data Pipelines**: Schedule and orchestrate data workflows with Dagster
-- **Scalable Architecture**: Microservices design allows independent scaling of components
-- **Rich Search Capabilities**: Full-text search with Elasticsearch
-- **GraphQL API**: Flexible data queries with FastAPI and Strawberry
-- **Real-time Monitoring**: Track pipeline health and performance with Prometheus & Grafana
-- **Research-Ready**: Clean, validated, and enriched data ready for analysis
+- **Orchestrated Pipelines**: Asset-based ingestion, enrichment and indexing with Dagster, plus a daily schedule
+- **Service Separation**: Independent Compose services for database, cache, search, orchestration and API
+- **Search**: Full-text peptide search backed by Elasticsearch
+- **GraphQL API**: Query-only FastAPI + Strawberry endpoint with a GraphiQL playground
+- **Observability**: Prometheus metrics and a provisioned Grafana overview dashboard
+- **Validated Models**: Pydantic models enforce sequence, quality-score and field constraints
 
 ---
 
@@ -42,28 +61,25 @@ VenomFlow is designed for collecting, processing, and analyzing venom peptide da
 
 ### Data Ingestion & Processing
 - **UniProt Integration**: Fetch data from UniProt with rate limiting and pagination
-- **Automated Validation**: Ensure data quality with comprehensive validation rules
-- **Sequence Analysis**: Sequence similarity analysis for homology searches
-- **Property Enrichment**: Automatic calculation of physicochemical properties
-- **Batch Processing**: Efficient handling of large datasets
+- **Model Validation**: Pydantic models reject invalid amino-acid codes and out-of-range quality scores
+- **Sequence Similarity**: Pre-computed Smith-Waterman/BioPython alignments stored in PostgreSQL
+- **Property Enrichment**: Physicochemical properties computed with RDKit and BioPython
+- **Batch Processing**: Chunked bulk inserts and batched enrichment
 
 ### Search & Discovery
-- **Full-text Search**: Fast, relevant search across all peptide data
-- **Advanced Filtering**: Filter by organism, bioactivity, properties, and more
-- **Faceted Search**: Aggregate and explore data by multiple dimensions
-- **Relationship Mapping**: Discover connections between peptides, organisms, and bioactivities
+- **Full-text Search**: Elasticsearch-backed search over name, UniProt ID, family and sequence
+- **Advanced Filtering**: Filter by organism, family, venom type, sequence length, mass and more
+- **Similarity Lookup**: Retrieve pre-computed similar peptides above a score threshold
 
 ### API & Integration
-- **GraphQL API**: Flexible queries with precise data fetching
-- **RESTful Endpoints**: Standard HTTP interfaces for common operations
-- **Authentication**: Secure access with JWT tokens
-- **Interactive Documentation**: Auto-generated API docs with Swagger/GraphQL Playground
+- **GraphQL API**: Query-only schema for peptides, organisms, properties and similarities
+- **Health and Metrics Endpoints**: `/health` and `/metrics` on the FastAPI service
+- **Interactive Playground**: GraphiQL at `/graphql`, OpenAPI docs at `/docs`
 
 ### Monitoring & Analytics
-- **Real-time Dashboards**: Monitor pipeline execution and system health
-- **Alert System**: Get notified of pipeline failures or anomalies
-- **Metrics Collection**: Track throughput, latency, and resource usage
-- **Historical Analysis**: Visualize trends over time
+- **Prometheus Metrics**: Request rate, latency percentiles and in-flight requests
+- **Grafana Dashboard**: Pre-provisioned *VenomFlow Overview* dashboard
+- **Structured Logs**: JSON logs from the API and Dagster services
 
 ---
 
@@ -128,6 +144,8 @@ Get VenomFlow running locally in under 5 minutes!
 
 5. **Access the services**
    - **Dagster UI**: http://localhost:3000
+   - **GraphQL API / Playground**: http://localhost:8000/graphql
+   - **API health**: http://localhost:8000/health
    - **Grafana**: http://localhost:3001
    - **Prometheus**: http://localhost:9090
    - **Elasticsearch**: http://localhost:9200
@@ -142,10 +160,13 @@ make ps
 # View all logs
 make logs
 
-# Run a test query
+# API health check
+curl http://localhost:8000/health
+
+# Minimal GraphQL smoke test
 curl -X POST http://localhost:8000/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query": "{ health }"}'
+  -d '{"query": "{ __typename }"}'
 ```
 
 ### Stop Services
@@ -162,72 +183,54 @@ make clean
 
 ## Architecture
 
-VenomFlow follows a microservices architecture with a separation of concerns.
+```mermaid
+flowchart TB
+    subgraph API["API layer"]
+        GQL["FastAPI + Strawberry<br/>/graphql · /health · /metrics"]
+    end
+    subgraph ORCH["Orchestration (Dagster)"]
+        WS["dagster-webserver"]
+        DMN["dagster-daemon<br/>(schedule + run coordinator)"]
+    end
+    subgraph PROC["Pipeline assets"]
+        ING["ingestion<br/>UniProt → Postgres"]
+        ENR["enrichment<br/>RDKit + BioPython"]
+        SIM["similarity<br/>BioPython alignments"]
+        IDX["indexer<br/>Postgres → Elasticsearch"]
+    end
+    subgraph STORE["Storage"]
+        PG[("PostgreSQL")]
+        ES[("Elasticsearch")]
+        RD[("Redis")]
+    end
+    subgraph OBS["Observability"]
+        PROM["Prometheus"]
+        GRAF["Grafana"]
+    end
 
+    ING --> PG
+    ENR --> PG
+    SIM --> PG
+    IDX --> ES
+    PG --> IDX
+    WS --> PROC
+    DMN --> PROC
+    PG --> GQL
+    ES --> GQL
+    RD -. reserved .-> PROC
+    GQL --> PROM --> GRAF
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         VenomFlow Platform                      │
-└─────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────┐
-│                      API Layer (FastAPI)                        │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │   GraphQL API                  REST API                   │  │
-│  │   - Queries                    - Health checks            │  │
-│  │   - Mutations                  - Batch operations         │  │
-│  │   - Subscriptions              - File uploads             │  │
-│  └──────────────────────────────────────────────────────────┘   │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────┴─────────────────────────────────────┐
-│              Orchestration Layer (Dagster)                      │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Dagster Web Server    │    Dagster Daemon               │   │
-│  │  - Pipeline UI         │    - Scheduler                  │   │
-│  │  - Job monitoring      │    - Sensors                    │   │
-│  │  - Asset lineage       │    - Run coordinator            │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────┴─────────────────────────────────────┐
-│                     Processing Layer                            │
-│  ┌────────────────┬────────────────┬────────────────────────┐   │
-│  │  Ingestion     │  Validation    │  Enrichment            │   │
-│  │  - UniProt     │  - Schema      │  - Properties          │   │
-│  │                │  - Quality     │  - Similarity          │   │
-│  │                │  - Dedup       │  - Cross-reference     │   │
-│  └────────────────┴────────────────┴────────────────────────┘   │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────┴─────────────────────────────────────┐
-│                      Storage Layer                              │
-│  ┌──────────────┬──────────────┬──────────────┐                 │
-│  │ PostgreSQL   │ Elasticsearch│    Redis     │                 │
-│  │ - Structured │ - Full-text  │ - Cache      │                 │
-│  │ - Relations  │ - Search     │ - Sessions   │                 │
-│  │ - Metadata   │ - Analytics  │ - Queue      │                 │
-│  └──────────────┴──────────────┴──────────────┘                 │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────┴─────────────────────────────────────┐
-│              Monitoring Layer (Prometheus/Grafana)              │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Metrics Collection    │    Visualization                │   │
-│  │  - Service health      │    - Dashboards                 │   │
-│  │  - Pipeline metrics    │    - Alerts                     │   │
-│  │  - Resource usage      │    - Historical data            │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
+The pipeline runs as one asset job (`venom_flow_pipeline`) and is attached to a
+daily schedule (`venom_flow_daily_schedule`, 02:00 UTC).
 
 ### Architecture Principles
 
-1. **Separation of Concerns**: Each service has a single and defined responsibility
-2. **Loose Coupling**: Services communicate via defined interfaces
-3. **High Cohesion**: Related functionality is grouped together
-4. **Scalability**: Services can be scaled independently based on load
-5. **Resilience**: Failure in one service doesn't cascade to others
-6. **Observability**: Comprehensive logging, metrics, and tracing
+1. **Separation of Concerns**: Each service has a single, defined responsibility
+2. **Loose Coupling**: Services communicate through the database and HTTP interfaces
+3. **Asset-Based Orchestration**: Dagster models each pipeline step as a data asset
+4. **Observability**: Structured logs plus Prometheus/Grafana metrics
+5. **Explicit Scope**: Unimplemented areas are listed in [Project Status](#project-status)
 
 ---
 
@@ -235,79 +238,90 @@ VenomFlow follows a microservices architecture with a separation of concerns.
 
 ```
 venomflow/
-├── README.md                        # This file
-├── .env.example                     # Environment variables template
-├── .gitignore                       # Git ignore rules
-├── docker-compose.yml               # Docker orchestration
+├── README.md
+├── LICENSE
+├── pyproject.toml                   # Metadata, dependency extras, pytest/ruff/coverage config
+├── requirements-dev.txt             # Dev/test tooling
+├── requirements-dev.lock            # Hash-pinned lockfile for CI and local development
+├── docker-compose.yml               # 8-service local stack
+├── Makefile
+├── .env.example
 │
-├── api/                             # FastAPI GraphQL API
-│   ├── Dockerfile                      # API container definition
-│   ├── requirements.txt                # API dependencies
-│   ├── main.py                         # API entry point
-│   ├── schema/                         # GraphQL schema definitions
-│   │   ├── queries.py                  # Query resolvers
-│   │   ├── mutations.py                # Mutation resolvers
-│   │   └── subscriptions.py            # Subscription resolvers
-│   ├── resolvers/                      # Business logic
-│   │   └── peptide.py                  # Peptide resolvers
-│   ├── services/                       # Service layer
-│   │   └── search.py                   # Search services
-│   └── tests/                          # API tests
+├── api/                             # FastAPI + Strawberry GraphQL
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── requirements.txt
+│   ├── requirements.lock
+│   ├── main.py                      # App factory, /health, /metrics, /graphql
+│   └── schema/
+│       ├── __init__.py
+│       ├── queries.py               # Query resolvers
+│       └── types.py                 # Strawberry types and input filters
 │
 ├── dagster_pipelines/               # Dagster orchestration
-│   ├── Dockerfile                      # Dagster container definition
-│   ├── requirements.txt                # Dagster dependencies
-│   ├── dagster.yaml                    # Dagster configuration
-│   ├── workspace.yaml                  # Workspace definition
-│   ├── assets/                         # Data assets (tables/files)
-│   │   ├── ingestion.py                # Data ingestion assets
-│   │   ├── validation.py               # Validation assets
-│   │   └── enrichment.py               # Enrichment assets
-│   ├── resources/                      # External resources
-│   │   └── database.py                 # Database connections
-│   ├── jobs/                           # Job definitions
-│   ├── sensors/                        # Event sensors
-│   └── tests/                          # Pipeline tests
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── requirements.txt
+│   ├── requirements.lock
+│   ├── dagster.yaml
+│   ├── dagster_simple.yaml
+│   ├── workspace.yaml
+│   ├── __init__.py                  # Definitions entry point
+│   ├── assets/
+│   │   ├── __init__.py
+│   │   ├── ingestion.py             # UniProt ingestion
+│   │   ├── enrichment.py            # Property enrichment asset
+│   │   ├── property_calculators.py  # RDKit/BioPython helpers
+│   │   ├── blast_similarity.py      # Sequence similarity asset
+│   │   └── elasticsearch_indexer.py # Bulk indexing asset
+│   ├── jobs/
+│   │   └── __init__.py              # venom_flow_pipeline + daily schedule
+│   └── resources/
+│       ├── __init__.py
+│       ├── database.py
+│       ├── elasticsearch.py
+│       └── redis.py
 │
-├── shared/                          # Shared code across services
-│   ├── config/                         # Configuration management
-│   │   └── settings.py                 # Pydantic settings
-│   ├── models/                         # Data models
-│   │   ├── organism.py                 # Organism model
-│   │   ├── peptide.py                  # Peptide model
-│   │   ├── bioactivity.py              # Bioactivity model
-│   │   └── properties.py               # Properties model
-│   ├── database/                       # Database utilities
-│   │   ├── connection.py               # Connection management
-│   │   ├── schema.sql                  # Database schema
-│   │   └── migrations/                 # Schema migrations
-│   └── utils/                          # Utility functions
-│       └── validators.py               # Data validators
+├── shared/                          # Code shared by API and pipelines
+│   ├── config/
+│   │   └── settings.py              # Pydantic settings
+│   ├── models/
+│   │   ├── organism.py
+│   │   ├── peptide.py
+│   │   ├── bioactivity.py
+│   │   └── properties.py
+│   └── database/
+│       ├── connection.py
+│       ├── 01-schema.sql            # PostgreSQL schema
+│       └── 02-dagster-init.sql      # Dagster metadata database
 │
-├── workers/                         # Background workers
-│   ├── enrichment_worker.py            # Enrichment processor
-│   └── blast_runner.py                 # BLAST execution
+├── scripts/
+│   ├── init_database.sh
+│   ├── verify_infrastructure.py
+│   ├── verify_schema.py
+│   ├── analyze_schema.py
+│   └── test_database.py
 │
-├── scripts/                         # Utility scripts
-│   ├── init_database.sh                # Database initialization
-│   ├── verify_infrastructure.py        # Infrastructure check
-│   ├── seed_test_data.py               # Test data seeding
-│   └── backup.sh                       # Backup automation
+├── monitoring/
+│   ├── prometheus/
+│   │   └── prometheus.yml
+│   └── grafana/
+│       ├── dashboards/
+│       └── datasources/
 │
-├── monitoring/                      # Monitoring configuration
-│   ├── prometheus/                     # Prometheus config
-│   │   └── prometheus.yml              # Scrape targets
-│   └── grafana/                        # Grafana config
-│       ├── dashboards/                 # Dashboard definitions
-│       └── datasources/                # Data source config
+├── tests/
+│   ├── conftest.py
+│   ├── api/                         # GraphQL type and resolver tests
+│   └── unit/                        # Asset, resource, settings and model tests
 │
-├── tests/                           # Test suite
-│   └── unit/                        # Unit fixtures
+└── .github/
+    └── workflows/
+        └── ci.yml                   # Ruff, pytest, docker compose config
 ```
 
 ---
 
-##  Configuration
+## Configuration
 
 VenomFlow uses environment variables for configuration. Copy `.env.example` to `.env` and customize:
 
@@ -334,11 +348,6 @@ REDIS_PASSWORD=your_redis_password_here
 ELASTIC_HOST=elasticsearch
 ELASTIC_PORT=9200
 ELASTIC_PASSWORD=your_elastic_password_here
-
-# Storage
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password_here
 
 # API
 API_PORT=8000
@@ -450,10 +459,13 @@ query SimilarPeptides {
 
 VenomFlow uses Dagster for orchestrating data pipelines with the following stages:
 
-1. **Ingestion**: Fetch raw data from external sources
-2. **Validation**: Verify data quality and completeness
-3. **Enrichment**: Add computed properties and cross-references
-4. **Indexing**: Update Elasticsearch for fast search
+1. **Ingestion**: Fetch venom peptide records from UniProt into PostgreSQL
+2. **Enrichment**: Compute physicochemical properties with RDKit/BioPython
+3. **Similarity**: Pre-compute sequence alignments and store them in PostgreSQL
+4. **Indexing**: Bulk-index enriched peptides into Elasticsearch
+
+There is no separate validation asset; records are validated by the Pydantic
+models and constrained by the PostgreSQL schema on write.
 
 ### Running Pipelines
 
@@ -461,19 +473,19 @@ VenomFlow uses Dagster for orchestrating data pipelines with the following stage
 # Via Dagster UI
 # Navigate to http://localhost:3000 and click "Launchpad"
 
-# Via CLI
-dagster job execute -m dagster_pipelines -j venomflow_pipeline
+# Via CLI (from inside the Dagster container)
+dagster job execute -m dagster_pipelines -j venom_flow_pipeline
 
-# Schedule-based execution
-# Pipelines run automatically based on configured schedules
+# Scheduled execution
+# venom_flow_daily_schedule runs the job every day at 02:00 UTC.
+# Enable it in the Dagster UI (Overview -> Schedules) or start the daemon.
 ```
 
 ### Pipeline Monitoring
 
-- **Real-time**: Watch pipeline execution in Dagster UI
-- **Metrics**: View throughput and latency in Grafana
-- **Logs**: Access detailed logs in Dagster or via `docker compose logs`
-- **Alerts**: Get notified of failures via configured channels
+- **Runs**: Watch pipeline execution in the Dagster UI
+- **Metrics**: View API throughput and latency in Grafana
+- **Logs**: Access detailed logs in Dagster or via `make logs-<service>`
 
 ---
 
@@ -568,70 +580,76 @@ make logs | grep ERROR
 
 ## Testing
 
-The project uses **pytest** for unit testing. Tests cover all Dagster pipeline assets, helper functions, resources, job definitions, and shared configuration. No external services (database, Elasticsearch, Redis) are needed to run the test suite — all dependencies are mocked.
+The project uses **pytest** for unit testing. The suite has **140 tests** covering
+the Dagster assets and helpers, resources, job/schedule definitions, shared Pydantic
+models, and the GraphQL types and query resolvers. No external services (database,
+Elasticsearch, Redis) are needed — clients are mocked or faked.
 
 ### Running Tests
 
 ```bash
-# Run the full test suite locally (no Docker required)
+# Install the hash-pinned dev environment
+pip install --require-hashes -r requirements-dev.lock
+
+# Run the full suite (no Docker required)
 make test
 
-# Run tests with coverage report
+# Run with coverage
 make test-cov
 
-# Run tests inside the Dagster daemon container
-make test-docker
+# Lint
+ruff check .
 ```
 
 ### Test Structure
 
 ```
 tests/
-├── conftest.py                         # Shared fixtures (mock_context, mock_database_resource, mock_session)
-├── unit/
-│   ├── assets/
-│   │   ├── test_blast_similarity.py    # Sequence alignment, helpers, asset
-│   │   ├── test_elasticsearch_indexer.py # Index creation, mapping, bulk indexing
-│   │   ├── test_enrichment.py          # Property enrichment asset, batch helpers
-│   │   └── test_ingestion.py           # UniProt ingestion, hashing, batch insert
-│   ├── test_property_calculators.py    # RDKit/BioPython property computation
-│   ├── test_resources.py               # Database, Elasticsearch, Redis resources
-│   ├── test_jobs.py                    # Dagster job definitions
-│   └── test_settings.py               # Pydantic settings and validators
-└── integration/                        # (reserved for future integration tests)
+├── conftest.py
+├── api/
+│   ├── test_types.py                   # Strawberry schema and type construction
+│   └── test_queries.py                 # Row mapping + peptide/similarity resolvers
+└── unit/
+    ├── assets/
+    │   ├── test_blast_similarity.py    # Sequence alignment, helpers, asset
+    │   ├── test_elasticsearch_indexer.py
+    │   ├── test_enrichment.py          # Property enrichment asset, batch helpers
+    │   └── test_ingestion.py           # UniProt ingestion, hashing, batch insert
+    ├── test_property_calculators.py    # RDKit/BioPython property computation
+    ├── test_resources.py               # Database, Elasticsearch, Redis resources
+    ├── test_shared_models.py           # Sequence validation, computed fields, bounds
+    ├── test_jobs.py                    # Job and schedule definitions
+    └── test_settings.py                # Pydantic settings and validators
 ```
 
 ---
 
 ## Deployment
 
-### Production Deployment
+### Self-Hosted Deployment
 
-**Quick production setup:**
+The Compose stack targets local development and demos. Before exposing it beyond
+your machine, review every value in `.env` and put an authenticating proxy in front
+of the API — the GraphQL endpoint has no authentication.
 
 ```bash
-# 1. Set production environment
+# 1. Set the environment
 export APP_ENV=production
 export APP_DEBUG=false
 
-# 2. Update .env with production values
-# - Strong passwords
-# - External database hosts
-# - Production API keys
+# 2. Provide your own values in .env (strong passwords, hosts, secrets)
 
-# 3. Build production images
+# 3. Build and start
 make build
-
-# 4. Start services
 make up
 
-# 5. Run migrations
-docker compose exec dagster-webserver python scripts/migrate.py
-
-# 6. Verify deployment
+# 4. Verify
 make ps
-curl http://your-domain/health
+curl http://localhost:8000/health
 ```
+
+PostgreSQL applies `shared/database/01-schema.sql` on first initialisation; there is
+no separate migration tool.
 
 ### Infrastructure Requirements
 
@@ -640,7 +658,7 @@ curl http://your-domain/health
 - 8 GB RAM
 - 50 GB disk space
 
-**Recommended (Production)**
+**Recommended (Larger Datasets)**
 - 8 CPU cores
 - 16 GB RAM
 - 200 GB SSD storage

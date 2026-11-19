@@ -1,9 +1,10 @@
 """Elasticsearch resource for Dagster using shared/config/settings."""
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 import dagster as dg
-from pydantic import Field, PrivateAttr
 from elasticsearch import Elasticsearch
+from pydantic import Field, PrivateAttr
 
 from shared.config.settings import settings
 

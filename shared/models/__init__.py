@@ -4,47 +4,46 @@ Exports all Pydantic models for VenomFlow application
 """
 
 # Organism models
+# Bioactivity models
+from .bioactivity import (
+    ActivityRelation,
+    ActivityType,
+    Bioactivity,
+    BioactivityBase,
+    BioactivityCreate,
+    BioactivitySummary,
+    BioactivityUpdate,
+    BioactivityWithPeptide,
+    ConfidenceLevel,
+)
 from .organism import (
-    VenomType,
     DataSource,
+    Organism,
     OrganismBase,
     OrganismCreate,
     OrganismUpdate,
-    Organism,
     OrganismWithStats,
+    VenomType,
 )
 
 # Peptide models
 from .peptide import (
+    Peptide,
     PeptideBase,
     PeptideCreate,
-    PeptideUpdate,
-    Peptide,
-    PeptideWithRelations,
     PeptideSearchResult,
-)
-
-# Bioactivity models
-from .bioactivity import (
-    ActivityType,
-    ActivityRelation,
-    ConfidenceLevel,
-    BioactivityBase,
-    BioactivityCreate,
-    BioactivityUpdate,
-    Bioactivity,
-    BioactivityWithPeptide,
-    BioactivitySummary,
+    PeptideUpdate,
+    PeptideWithRelations,
 )
 
 # Properties models
 from .properties import (
+    PhysicochemicalProperties,
     PropertiesBase,
+    PropertiesComparison,
     PropertiesCreate,
     PropertiesUpdate,
-    PhysicochemicalProperties,
     PropertiesWithPeptide,
-    PropertiesComparison,
 )
 
 __all__ = [

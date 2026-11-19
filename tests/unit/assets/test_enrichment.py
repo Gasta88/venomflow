@@ -1,7 +1,8 @@
 """Unit tests for enrichment asset and helpers."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from dagster import MaterializeResult
 
 from dagster_pipelines.assets.enrichment import (

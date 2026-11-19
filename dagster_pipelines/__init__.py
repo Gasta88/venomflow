@@ -15,7 +15,7 @@ from assets import (
 from assets.enrichment import compute_peptide_properties
 from resources.database import database_resource
 from resources.elasticsearch import elasticsearch_resource
-from jobs import venom_flow_pipeline
+from jobs import venom_flow_daily_schedule, venom_flow_pipeline
 
 
 # Create the Dagster definitions
@@ -27,6 +27,7 @@ defs = Definitions(
         index_peptides_to_elasticsearch,
     ],
     jobs=[venom_flow_pipeline],
+    schedules=[venom_flow_daily_schedule],
     resources={
         "database": database_resource,
         "elasticsearch": elasticsearch_resource,

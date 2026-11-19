@@ -49,6 +49,12 @@ dagster.yaml.bak
 .logs_queue/
 .nux/
 
+# Tooling artifacts
+.codegraph/
+
+# Backups
+backups/
+
 # Testing
 .pytest_cache/
 .coverage

@@ -13,8 +13,8 @@ Exit Codes:
     1 - One or more tests failed
 """
 
-import sys
 import os
+import sys
 from uuid import uuid4
 
 # Add project root to path
@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from sqlalchemy import text
+
     from shared.database.connection import get_db_context, test_connection
 except ImportError as e:
     print(f"❌ Import error: {e}")
@@ -47,7 +48,7 @@ class DatabaseTester:
                 self.tests_passed += 1
                 self.test_results.append((test_name, True, result))
             else:
-                print(f"❌ Test returned False")
+                print("❌ Test returned False")
                 self.tests_failed += 1
                 self.test_results.append((test_name, False, "Test returned False"))
         except Exception as e:

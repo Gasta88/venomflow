@@ -6,10 +6,10 @@ Represents peptide sequences with metadata and computed fields
 import hashlib
 import re
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class PeptideBase(BaseModel):

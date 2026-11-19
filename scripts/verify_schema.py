@@ -4,9 +4,10 @@ VenomFlow Schema Verification Script
 Verifies PostgreSQL schema has been correctly applied
 """
 
-import sys
 import os
+import sys
 from typing import Dict, Tuple
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -216,7 +217,7 @@ def verify_triggers(cursor) -> Tuple[bool, int]:
     print(f"\nTotal triggers: {actual_count} (expected: {expected_trigger_count})")
     
     if actual_count == expected_trigger_count:
-        print_success(f"Trigger count matches requirement")
+        print_success("Trigger count matches requirement")
         return True, actual_count
     else:
         print_warning(f"Trigger count mismatch (expected {expected_trigger_count}, got {actual_count})")

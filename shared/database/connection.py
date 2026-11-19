@@ -9,8 +9,8 @@ import logging
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from sqlalchemy import create_engine, text, event, Engine, exc
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import Engine, create_engine, event, exc, text
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from shared.config.settings import Settings

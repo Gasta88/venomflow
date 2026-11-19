@@ -3,7 +3,7 @@
 ###############################################################################
 # VenomFlow Database Initialization Script
 # 
-# Applies the schema.sql to the PostgreSQL database via Docker.
+# Applies shared/database/01-schema.sql to the PostgreSQL database via Docker.
 # This script should be run after starting the Docker containers.
 #
 # Usage:
@@ -39,8 +39,8 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if schema.sql exists
-SCHEMA_FILE="$PROJECT_ROOT/shared/database/schema.sql"
+# Check if the schema file exists
+SCHEMA_FILE="$PROJECT_ROOT/shared/database/01-schema.sql"
 if [ ! -f "$SCHEMA_FILE" ]; then
     echo -e "${RED}❌ Schema file not found: $SCHEMA_FILE${NC}"
     exit 1
@@ -109,7 +109,7 @@ if docker exec -i "$POSTGRES_CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_D
     echo -e "${GREEN}✅ Schema applied successfully${NC}"
 else
     echo -e "${RED}❌ Failed to apply schema${NC}"
-    echo -e "${YELLOW}💡 Check the schema.sql file for syntax errors${NC}"
+    echo -e "${YELLOW}💡 Check the 01-schema.sql file for syntax errors${NC}"
     exit 1
 fi
 

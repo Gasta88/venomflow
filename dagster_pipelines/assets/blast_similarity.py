@@ -15,11 +15,11 @@ from typing import Any, Dict, List, Tuple
 from Bio import Align
 from Bio.Align import substitution_matrices
 from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
+from resources.database import DatabaseResource
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from shared.config.settings import settings
-from resources.database import DatabaseResource
 
 logger = logging.getLogger(__name__)
 

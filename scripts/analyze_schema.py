@@ -108,7 +108,7 @@ def verify_requirements(results: Dict) -> bool:
     if set(expected_extensions) == set(results['extensions']):
         print_success(f"All required extensions found ({len(results['extensions'])}/2)")
     else:
-        print_error(f"Extension mismatch")
+        print_error("Extension mismatch")
         all_passed = False
     
     # Check tables
@@ -120,7 +120,7 @@ def verify_requirements(results: Dict) -> bool:
     if set(expected_tables) == set(found_tables):
         print_success(f"All 8 core tables found ({len(found_tables)}/8)")
     else:
-        print_error(f"Table count mismatch")
+        print_error("Table count mismatch")
         missing = set(expected_tables) - set(found_tables)
         if missing:
             print_error(f"Missing tables: {missing}")

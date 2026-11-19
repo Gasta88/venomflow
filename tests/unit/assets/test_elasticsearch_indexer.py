@@ -1,14 +1,14 @@
 """Unit tests for Elasticsearch peptide indexer asset."""
 
-from unittest.mock import MagicMock, Mock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
 from dagster_pipelines.assets.elasticsearch_indexer import (
+    _bulk_index_documents,
     _create_peptides_index,
     _get_kmer_analyzer_config,
     _get_peptides_index_mapping,
     _transform_peptide_to_doc,
-    _bulk_index_documents,
 )
 
 

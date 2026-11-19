@@ -5,8 +5,8 @@
 # Core Dagster - 1.12+ removed pendulum dependency, Python 3.13 compatible
 dagster==1.12.15
 dagster-webserver==1.12.15
-dagster-postgres>=0.21
-dagster-docker>=0.21
+dagster-postgres==0.28.15
+dagster-docker==0.28.15
 
 # Database - psycopg3 for Python 3.13 compatibility
 psycopg[binary]>=3.1
@@ -40,4 +40,4 @@ structlog==23.2.0
 python-dateutil==2.8.2
 
 # Test
-pytest
+pytest>=7.4,<9
